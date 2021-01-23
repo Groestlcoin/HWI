@@ -15,7 +15,7 @@ class HardwareWalletClient(object):
     def __init__(self, path: str, password: str, expert: bool) -> None:
         self.path = path
         self.password = password
-        self.message_magic = b"\x18Bitcoin Signed Message:\n"
+        self.message_magic = b"\x1CGroestlCoin Signed Message:\n"
         self.is_testnet = False
         self.fingerprint: Optional[str] = None
         # {bip32_path: <xpub string>}
@@ -25,12 +25,12 @@ class HardwareWalletClient(object):
     def get_master_xpub(self) -> Dict[str, str]:
         """Return the master BIP44 public key.
 
-        Retrieve the public key at the "m/44h/0h/0h" derivation path.
+        Retrieve the public key at the "m/44h/17h/0h" derivation path.
 
         Return {"xpub": <xpub string>}.
         """
         # FIXME testnet is not handled yet
-        return self.get_pubkey_at_path("m/44h/0h/0h")
+        return self.get_pubkey_at_path("m/44h/17h/0h")
 
     def get_master_fingerprint_hex(self) -> str:
         """Return the master public key fingerprint as hex-string.
@@ -59,9 +59,9 @@ class HardwareWalletClient(object):
     def sign_message(
         self, message: Union[str, bytes], bip32_path: str
     ) -> Dict[str, str]:
-        """Sign a message (bitcoin message signing).
+        """Sign a message (groestlcoin message signing).
 
-        Sign the message according to the bitcoin message signing standard:
+        Sign the message according to the groestlcoin message signing standard:
         usually, the message is a string that is encoded to bytes;
         anyway, if the message is already bytes it is processed untouched.
 

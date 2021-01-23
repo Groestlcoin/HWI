@@ -357,12 +357,12 @@ def trezor_test_suite(emulator, rpc, userpass, interface, model_t=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Test Trezor implementation')
     parser.add_argument('emulator', help='Path to the Trezor emulator')
-    parser.add_argument('bitcoind', help='Path to bitcoind binary')
+    parser.add_argument('groestlcoind', help='Path to groestlcoind binary')
     parser.add_argument('--interface', help='Which interface to send commands over', choices=['library', 'cli', 'bindist'], default='library')
     parser.add_argument('--model_t', help='The emulator is for the Trezor T', action='store_true')
     args = parser.parse_args()
 
     # Start bitcoind
-    rpc, userpass = start_bitcoind(args.bitcoind)
+    rpc, userpass = start_bitcoind(args.groestlcoind)
 
     sys.exit(not trezor_test_suite(args.emulator, rpc, userpass, args.interface, args.model_t))

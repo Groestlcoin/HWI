@@ -157,7 +157,7 @@ def getdescriptor(client, master_fpr, testnet=False, path=None, internal=False, 
         if testnet:
             parsed_path.append(H_(1))
         else:
-            parsed_path.append(H_(0))
+            parsed_path.append(H_(17))
 
         # Account
         parsed_path.append(H_(account))
