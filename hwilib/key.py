@@ -9,6 +9,7 @@ import binascii
 import hmac
 import hashlib
 import struct
+import groestlcoin_hash
 from typing import (
     Dict,
     Optional,
@@ -135,7 +136,7 @@ class ExtendedKey(object):
 
     def to_string(self) -> str:
         data = self.serialize()
-        checksum = hashlib.sha256(hashlib.sha256(data).digest()).digest()[0:4]
+        checksum = groestlcoin_hash.getHash(data, len(data))[0:4]
         return base58.encode(data + checksum)
 
     def get_printable_dict(self) -> Dict[str, object]:

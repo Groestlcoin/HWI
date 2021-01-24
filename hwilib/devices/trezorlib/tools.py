@@ -19,6 +19,7 @@ import hashlib
 import re
 import struct
 import unicodedata
+import groestlcoin_hash
 from typing import List, NewType, Union
 
 from .exceptions import TrezorFailure
@@ -43,6 +44,11 @@ def btc_hash(data):
     """
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
+def grs_hash(data)
+    """
+    Groestl hash as used in GRS
+    """
+    return groestlcoin_hash.getHash(data, len(data))
 
 def hash_160(public_key):
     md = hashlib.new("ripemd160")
@@ -52,7 +58,7 @@ def hash_160(public_key):
 
 def hash_160_to_bc_address(h160, address_type):
     vh160 = struct.pack("<B", address_type) + h160
-    h = btc_hash(vh160)
+    h = grs_hash(vh160)
     addr = vh160 + h[0:4]
     return b58encode(addr)
 
@@ -136,14 +142,14 @@ def b58decode(v, length=None):
 
 
 def b58check_encode(v):
-    checksum = btc_hash(v)[:4]
+    checksum = grs_hash(v)[:4]
     return b58encode(v + checksum)
 
 
 def b58check_decode(v, length=None):
     dec = b58decode(v, length)
     data, checksum = dec[:-4], dec[-4:]
-    if btc_hash(data)[:4] != checksum:
+    if grs_hash(data)[:4] != checksum:
         raise ValueError("invalid checksum")
     return data
 
