@@ -29,7 +29,7 @@ from ..key import (
     ExtendedKey,
 )
 from ..serializations import (
-    hash256,
+    groestl,
     hash160,
     is_p2sh,
     is_p2wpkh,
@@ -161,7 +161,7 @@ class LedgerClient(HardwareWalletClient):
         else:
             version = bytearray.fromhex("0488B21E")
         extkey = version + depth + fpr + child + chainCode + publicKey
-        checksum = hash256(extkey)[:4]
+        checksum = groestl(extkey)[:4]
 
         xpub = base58.encode(extkey + checksum)
         result = {"xpub": xpub}

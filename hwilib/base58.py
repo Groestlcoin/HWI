@@ -10,6 +10,7 @@
 
 import hashlib
 from binascii import hexlify, unhexlify
+import groestlcoin_hash
 from typing import List
 b58_digits: str = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
@@ -18,6 +19,9 @@ def sha256(s: bytes) -> bytes:
 
 def hash256(s: bytes) -> bytes:
     return sha256(sha256(s))
+
+def groestl(s: bytes) -> bytes:
+    return groestlcoin_hash.getHash(s, len(s))
 
 def encode(b: bytes) -> str:
     """Encode bytes to a base58-encoded string"""
@@ -83,7 +87,7 @@ def get_xpub_fingerprint_hex(xpub: str) -> str:
 
 def to_address(b: bytes, version: bytes) -> str:
     data = version + b
-    checksum = hash256(data)[0:4]
+    checksum = groestl(data)[0:4]
     data += checksum
     return encode(data)
 
@@ -95,5 +99,5 @@ def xpub_to_pub_hex(xpub: str) -> str:
 def xpub_main_2_test(xpub: str) -> str:
     data = decode(xpub)
     test_data = b'\x04\x35\x87\xCF' + data[4:-4]
-    checksum = hash256(test_data)[0:4]
+    checksum = groestl(test_data)[0:4]
     return encode(test_data + checksum)
