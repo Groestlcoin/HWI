@@ -33,7 +33,6 @@ from ..key import (
 )
 from ..serializations import (
     CTransaction,
-    hash256,
     is_p2pk,
     is_p2pkh,
     is_p2sh,
@@ -416,7 +415,7 @@ class DigitalbitboxClient(HardwareWalletClient):
                 ser_tx += b"\x01\x00\x00\x00"
 
                 # Hash it
-                sighash += hash256(ser_tx)
+                sighash += sha256(ser_tx)
                 txin.scriptSig = b""
             else:
                 # Calculate hashPrevouts and hashSequence
@@ -425,14 +424,14 @@ class DigitalbitboxClient(HardwareWalletClient):
                 for inputs in blank_tx.vin:
                     prevouts_preimage += inputs.prevout.serialize()
                     sequence_preimage += struct.pack("<I", inputs.nSequence)
-                hashPrevouts = hash256(prevouts_preimage)
-                hashSequence = hash256(sequence_preimage)
+                hashPrevouts = sha256(prevouts_preimage)
+                hashSequence = sha256(sequence_preimage)
 
                 # Calculate hashOutputs
                 outputs_preimage = b""
                 for output in blank_tx.vout:
                     outputs_preimage += output.serialize()
-                hashOutputs = hash256(outputs_preimage)
+                hashOutputs = sha256(outputs_preimage)
 
                 # Check if scriptcode is p2wpkh
                 if is_p2wpkh(scriptcode):
@@ -453,7 +452,7 @@ class DigitalbitboxClient(HardwareWalletClient):
                 preimage += b"\x01\x00\x00\x00"
 
                 # hash it
-                sighash = hash256(preimage)
+                sighash = sha256(preimage)
 
             # Figure out which keypath thing is for this input
             for pubkey, keypath in psbt_in.hd_keypaths.items():
@@ -518,7 +517,7 @@ class DigitalbitboxClient(HardwareWalletClient):
         else:
             to_hash += message.encode()
 
-        hashed_message = hash256(to_hash)
+        hashed_message = sha256(to_hash)
 
         to_send = '{"sign":{"data":[{"hash":"'
         to_send += binascii.hexlify(hashed_message).decode()

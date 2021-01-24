@@ -23,6 +23,7 @@ import binascii
 import hashlib
 import copy
 import base64
+import groestlcoin_hash
 
 from io import BytesIO, BufferedReader
 from typing import (
@@ -62,6 +63,8 @@ def hash256(s: bytes) -> bytes:
 def hash160(s: bytes) -> bytes:
     return ripemd160(sha256(s))
 
+def groestl(s: bytes) -> bytes:
+    return groestlcoin_hash.getHash(s, len(s))
 
 # Serialization/deserialization tools
 def ser_compact_size(size: int) -> bytes:
@@ -477,11 +480,11 @@ class CTransaction(object):
     def calc_sha256(self, with_witness: bool = False) -> Optional[int]:
         if with_witness:
             # Don't cache the result, just return it
-            return uint256_from_str(hash256(self.serialize_with_witness()))
+            return uint256_from_str(sha256(self.serialize_with_witness()))
 
         if self.sha256 is None:
-            self.sha256 = uint256_from_str(hash256(self.serialize_without_witness()))
-        self.hash = hash256(self.serialize())[::-1].hex()
+            self.sha256 = uint256_from_str(sha256(self.serialize_without_witness()))
+        self.hash = sha256(self.serialize())[::-1].hex()
         return None
 
     def is_null(self) -> bool:
