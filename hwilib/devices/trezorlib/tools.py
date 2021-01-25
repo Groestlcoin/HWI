@@ -44,7 +44,7 @@ def btc_hash(data):
     """
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
-def grs_hash(data)
+def grs_hash(data):
     """
     Groestl hash as used in GRS
     """

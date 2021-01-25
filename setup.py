@@ -119,6 +119,7 @@ modules = \
 install_requires = \
 ['bitbox02>=4.1.0',
  'ecdsa>=0,<1',
+ 'groestlcoin_hash==1.0.1',
  'hidapi>=0,<1',
  'libusb1>=1.7,<2.0',
  'mnemonic>=0,<1',
