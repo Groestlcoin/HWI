@@ -25,6 +25,7 @@ import copy
 import base64
 import groestlcoin_hash
 
+from enum import Enum
 from io import BytesIO, BufferedReader
 from typing import (
     Dict,
@@ -35,6 +36,7 @@ from typing import (
     Sequence,
     Tuple,
     TypeVar,
+    Union,
     Callable,
 )
 from typing_extensions import Protocol
@@ -65,6 +67,24 @@ def hash160(s: bytes) -> bytes:
 
 def groestl(s: bytes) -> bytes:
     return groestlcoin_hash.getHash(s, len(s))
+
+class AddressType(Enum):
+    PKH = 1
+    WPKH = 2
+    SH_WPKH = 3
+
+    def __str__(self) -> str:
+        return self.name.lower()
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    @staticmethod
+    def argparse(s: str) -> Union['AddressType', str]:
+        try:
+            return AddressType[s.upper()]
+        except KeyError:
+            return s
 
 # Serialization/deserialization tools
 def ser_compact_size(size: int) -> bytes:
@@ -266,6 +286,9 @@ class CTxIn(object):
                self.nSequence)
 
 
+def is_opreturn(script: bytes) -> bool:
+    return script[0] == 0x6a
+
 def is_p2sh(script: bytes) -> bool:
     return len(script) == 23 and script[0] == 0xa9 and script[1] == 0x14 and script[22] == 0x87
 
@@ -318,6 +341,9 @@ class CTxOut(object):
         r += struct.pack("<q", self.nValue)
         r += ser_string(self.scriptPubKey)
         return r
+
+    def is_opreturn(self) -> bool:
+        return is_opreturn(self.scriptPubKey)
 
     def is_p2sh(self) -> bool:
         return is_p2sh(self.scriptPubKey)

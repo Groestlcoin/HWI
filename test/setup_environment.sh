@@ -51,7 +51,7 @@ mkdir -p work
 cd work
 
 if [[ -n ${build_trezor_1} || -n ${build_trezor_t} ]]; then
-    # Clone trezor-mcu if it doesn't exist, or update it if it does
+    # Clone trezor-firmware if it doesn't exist, or update it if it does
     if [ ! -d "trezor-firmware" ]; then
         git clone --recursive https://github.com/trezor/trezor-firmware.git
         cd trezor-firmware
@@ -127,8 +127,7 @@ if [[ -n ${build_coldcard} ]]; then
         fi
     fi
     # Apply patch to make simulator work in linux environments
-    git am ../../data/coldcard-linux-sock.patch
-    git am ../../data/coldcard-multisig-setup.patch
+    git am ../../data/coldcard-multisig.patch
 
     # Build the simulator. This is cached, but it is also fast
     poetry run pip install -r requirements.txt

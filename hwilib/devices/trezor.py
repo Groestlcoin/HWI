@@ -49,6 +49,7 @@ from ..key import (
     parse_path,
 )
 from ..serializations import (
+    AddressType,
     CTxOut,
     is_p2pkh,
     is_p2sh,
@@ -250,7 +251,7 @@ class TrezorClient(HardwareWalletClient):
                     p2wsh = True
 
                 def ignore_input():
-                    txinputtype.address_n = [0x80000000 | 84, 0x80000000 | (1 if self.is_testnet else 0)]
+                    txinputtype.address_n = [0x80000000 | 84, 0x80000000 | (1 if self.is_testnet else 0), 0x80000000, 0, 0]
                     txinputtype.multisig = None
                     txinputtype.script_type = proto.InputScriptType.SPENDWITNESS
                     inputs.append(txinputtype)
@@ -327,6 +328,9 @@ class TrezorClient(HardwareWalletClient):
                     txoutput.address = to_address(out.scriptPubKey[3:23], p2pkh_version)
                 elif out.is_p2sh():
                     txoutput.address = to_address(out.scriptPubKey[2:22], p2sh_version)
+                elif out.is_opreturn():
+                    txoutput.script_type = proto.OutputScriptType.PAYTOOPRETURN
+                    txoutput.op_return_data = out.scriptPubKey[2:]
                 else:
                     wit, ver, prog = out.is_witness()
                     if wit:
@@ -412,7 +416,7 @@ class TrezorClient(HardwareWalletClient):
 
     # Display address of specified type on the device.
     @trezor_exception
-    def display_address(self, keypath, p2sh_p2wpkh, bech32, redeem_script=None, descriptor=None):
+    def display_address(self, keypath, addr_type: AddressType, redeem_script=None, descriptor=None):
         self._check_unlocked()
 
         # descriptor means multisig with xpubs
@@ -434,9 +438,9 @@ class TrezorClient(HardwareWalletClient):
             multisig = None
 
         # Script type
-        if p2sh_p2wpkh:
+        if addr_type == AddressType.SH_WPKH:
             script_type = proto.InputScriptType.SPENDP2SHWITNESS
-        elif bech32:
+        elif addr_type == AddressType.WPKH:
             script_type = proto.InputScriptType.SPENDWITNESS
         elif redeem_script:
             script_type = proto.InputScriptType.SPENDMULTISIG

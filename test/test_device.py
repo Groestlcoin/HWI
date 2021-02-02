@@ -18,7 +18,11 @@ from hwilib.key import KeyOriginInfo
 from hwilib.serializations import PSBT
 
 SUPPORTS_MS_DISPLAY = {'trezor_1', 'keepkey', 'coldcard', 'trezor_t'}
-SUPPORTS_XPUB_MS_DISPLAY = {'trezor_t'}
+SUPPORTS_XPUB_MS_DISPLAY = {'trezor_1', 'trezor_t'}
+SUPPORTS_MIXED = {'coldcard', 'trezor_1', 'digitalbitbox', 'keepkey', 'trezor_t'}
+SUPPORTS_MULTISIG = {'ledger', 'trezor_1', 'digitalbitbox', 'keepkey', 'coldcard', 'trezor_t'}
+SUPPORTS_EXTERNAL = {'ledger', 'trezor_1', 'digitalbitbox', 'keepkey', 'coldcard', 'trezor_t'}
+SUPPORTS_OP_RETURN = {'ledger', 'digitalbitbox', 'trezor_1', 'trezor_t', 'keepkey'}
 
 # Class for emulator control
 class DeviceEmulator():
@@ -192,7 +196,7 @@ class TestGetKeypool(DeviceTestCase):
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('legacy'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/44'/1'/0'/1/"))
 
-        shwpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--sh_wpkh', '0', '20'])
+        shwpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wpkh", '0', '20'])
         import_result = self.wrpc.importdescriptors(shwpkh_keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -201,7 +205,7 @@ class TestGetKeypool(DeviceTestCase):
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('p2sh-segwit'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/0'/1/"))
 
-        wpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--wpkh', '0', '20'])
+        wpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "wpkh", '0', '20'])
         import_result = self.wrpc.importdescriptors(wpkh_keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -214,7 +218,7 @@ class TestGetKeypool(DeviceTestCase):
         all_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--all', '0', '20'])
         self.assertEqual(all_keypool_desc, pkh_keypool_desc + wpkh_keypool_desc + shwpkh_keypool_desc)
 
-        keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--sh_wpkh', '--account', '3', '0', '20'])
+        keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wpkh", '--account', '3', '0', '20'])
         import_result = self.wrpc.importdescriptors(keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -222,7 +226,7 @@ class TestGetKeypool(DeviceTestCase):
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/3'/0/"))
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('p2sh-segwit'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/3'/1/"))
-        keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--wpkh', '--account', '3', '0', '20'])
+        keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "wpkh", '--account', '3', '0', '20'])
         import_result = self.wrpc.importdescriptors(keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -322,31 +326,39 @@ class TestSignTx(DeviceTestCase):
         return finalize_res['hex']
 
     def _make_multisigs(self):
-        desc_pubkeys = []
-        sorted_pubkeys = []
-        for i in range(0, 3):
-            path = "/48h/1h/{}h/0/0".format(i)
-            origin = '{}{}'.format(self.fingerprint, path)
-            xpub = self.do_command(self.dev_args + ["--expert", "getxpub", "m{}".format(path)])
-            desc_pubkeys.append("[{}]{}".format(origin, xpub["pubkey"]))
-            sorted_pubkeys.append(xpub["pubkey"])
-        sorted_pubkeys.sort()
+        def get_pubkeys(t):
+            desc_pubkeys = []
+            sorted_pubkeys = []
+            for i in range(0, 3):
+                path = "/48h/1h/{}h/{}h/0/0".format(i, t)
+                origin = '{}{}'.format(self.fingerprint, path)
+                xpub = self.do_command(self.dev_args + ["--expert", "getxpub", "m{}".format(path)])
+                desc_pubkeys.append("[{}]{}".format(origin, xpub["pubkey"]))
+                sorted_pubkeys.append(xpub["pubkey"])
+            sorted_pubkeys.sort()
+            return desc_pubkeys, sorted_pubkeys
 
+        desc_pubkeys, sorted_pubkeys = get_pubkeys(0)
         sh_desc = AddChecksum("sh(sortedmulti(2,{},{},{}))".format(desc_pubkeys[0], desc_pubkeys[1], desc_pubkeys[2]))
         sh_ms_info = self.rpc.createmultisig(2, sorted_pubkeys, "legacy")
         self.assertEqual(self.rpc.deriveaddresses(sh_desc)[0], sh_ms_info["address"])
 
+        # Trezor requires that each address type uses a different derivation path.
+        # Other devices don't have this requirement, and in the tests involving multiple address types, Coldcard will fail.
+        # So for those other devices, stick to the 0 path.
+        desc_pubkeys, sorted_pubkeys = get_pubkeys(1) if self.full_type == "trezor_t" else get_pubkeys(0)
         sh_wsh_desc = AddChecksum("sh(wsh(sortedmulti(2,{},{},{})))".format(desc_pubkeys[1], desc_pubkeys[2], desc_pubkeys[0]))
         sh_wsh_ms_info = self.rpc.createmultisig(2, sorted_pubkeys, "p2sh-segwit")
         self.assertEqual(self.rpc.deriveaddresses(sh_wsh_desc)[0], sh_wsh_ms_info["address"])
 
+        desc_pubkeys, sorted_pubkeys = get_pubkeys(2) if self.full_type == "trezor_t" else get_pubkeys(0)
         wsh_desc = AddChecksum("wsh(sortedmulti(2,{},{},{}))".format(desc_pubkeys[2], desc_pubkeys[1], desc_pubkeys[0]))
         wsh_ms_info = self.rpc.createmultisig(2, sorted_pubkeys, "bech32")
         self.assertEqual(self.rpc.deriveaddresses(wsh_desc)[0], wsh_ms_info["address"])
 
         return sh_desc, sh_ms_info["address"], sh_wsh_desc, sh_wsh_ms_info["address"], wsh_desc, wsh_ms_info["address"]
 
-    def _test_signtx(self, input_type, multisig, external):
+    def _test_signtx(self, input_type, multisig, external, op_return: bool):
         # Import some keys to the watch only wallet and send coins to them
         keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--all', '30', '50'])
         import_result = self.wrpc.importdescriptors(keypool_desc)
@@ -366,7 +378,7 @@ class TestSignTx(DeviceTestCase):
         self.assertTrue(multi_result[2]['success'])
 
         in_amt = 3
-        out_amt = in_amt // 3
+        out_amt = in_amt // 3 * 0.9
         number_inputs = 0
         # Single-sig
         if input_type == 'segwit' or input_type == 'all':
@@ -391,9 +403,19 @@ class TestSignTx(DeviceTestCase):
         # Spend different amounts, requiring 1 to 3 inputs
         for i in range(number_inputs):
             # Create a psbt spending the above
+            change_addr = self.wrpc.getrawchangeaddress()
             if i == number_inputs - 1:
-                self.assertTrue((i + 1) * in_amt == self.wrpc.getbalance("*", 0, True))
-            psbt = self.wrpc.walletcreatefundedpsbt([], [{self.wpk_rpc.getnewaddress('', 'legacy'): (i + 1) * out_amt}, {self.wpk_rpc.getnewaddress('', 'p2sh-segwit'): (i + 1) * out_amt}, {self.wpk_rpc.getnewaddress('', 'bech32'): (i + 1) * out_amt}], 0, {'includeWatching': True, 'subtractFeeFromOutputs': [0, 1, 2]}, True)
+                self.assertEqual((i + 1) * in_amt, self.wrpc.getbalance("*", 0, True))
+                change_addr = self.wpk_rpc.getrawchangeaddress()
+            out_val = (i + 1) * out_amt
+            outputs = [
+                {self.wpk_rpc.getnewaddress('', 'legacy'): out_val},
+                {self.wpk_rpc.getnewaddress('', 'p2sh-segwit'): out_val},
+                {self.wpk_rpc.getnewaddress('', 'bech32'): out_val}
+            ]
+            if op_return:
+                outputs.append({"data": "000102030405060708090a0b0c0d0e0f10111213141516171819101a1b1c1d1e1f"})
+            psbt = self.wrpc.walletcreatefundedpsbt([], outputs, 0, {'includeWatching': True, "changePosition": 3, "changeAddress": change_addr}, True)
 
             if external:
                 # Sign with unknown inputs in two steps
@@ -406,13 +428,16 @@ class TestSignTx(DeviceTestCase):
 
     # Test wrapper to avoid mixed-inputs signing for Ledger
     def test_signtx(self):
-        supports_mixed = {'coldcard', 'trezor_1', 'digitalbitbox', 'keepkey', 'trezor_t'}
-        supports_multisig = {'ledger', 'trezor_1', 'digitalbitbox', 'keepkey', 'coldcard', 'trezor_t'}
-        supports_external = {'ledger', 'trezor_1', 'digitalbitbox', 'keepkey', 'coldcard', 'trezor_t'}
-        self._test_signtx("legacy", self.full_type in supports_multisig, self.full_type in supports_external)
-        self._test_signtx("segwit", self.full_type in supports_multisig, self.full_type in supports_external)
-        if self.full_type in supports_mixed:
-            self._test_signtx("all", self.full_type in supports_multisig, self.full_type in supports_external)
+        multisig = self.full_type in SUPPORTS_MULTISIG
+        external = self.full_type in SUPPORTS_EXTERNAL
+        op_return = self.full_type in SUPPORTS_OP_RETURN
+        with self.subTest(addrtype="legacy", multisig=multisig, external=external):
+            self._test_signtx("legacy", multisig, external, op_return)
+        with self.subTest(addrtype="segwit", multisig=multisig, external=external):
+            self._test_signtx("segwit", multisig, external, op_return)
+        if self.full_type in SUPPORTS_MIXED:
+            with self.subTest(addrtype="all", multisig=multisig, external=external):
+                self._test_signtx("all", multisig, external, op_return)
 
     # Make a huge transaction which might cause some problems with different interfaces
     def test_big_tx(self):
@@ -444,24 +469,18 @@ class TestSignTx(DeviceTestCase):
                 pass
 
 class TestDisplayAddress(DeviceTestCase):
-    def test_display_address_bad_args(self):
-        result = self.do_command(self.dev_args + ['displayaddress', '--sh_wpkh', '--wpkh', '--path', 'm/49h/1h/0h/0/0'])
-        self.assertIn('error', result)
-        self.assertIn('code', result)
-        self.assertEqual(result['code'], -7)
-
     def test_display_address_path(self):
         result = self.do_command(self.dev_args + ['displayaddress', '--path', 'm/44h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
 
-        result = self.do_command(self.dev_args + ['displayaddress', '--sh_wpkh', '--path', 'm/49h/1h/0h/0/0'])
+        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "sh_wpkh", '--path', 'm/49h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
 
-        result = self.do_command(self.dev_args + ['displayaddress', '--wpkh', '--path', 'm/84h/1h/0h/0/0'])
+        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "wpkh", '--path', 'm/84h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
@@ -521,7 +540,7 @@ class TestDisplayAddress(DeviceTestCase):
         desc_pubkeys = []
         sorted_pubkeys = []
         for i in range(0, 3):
-            path = "/48h/1h/{}h/0/0".format(i)
+            path = "/48h/1h/{}h/0h/0/0".format(i)
             origin = '{}{}'.format(self.fingerprint, path)
             xpub = self.do_command(self.dev_args + ["--expert", "getxpub", "m{}".format(path)])
             desc_pubkeys.append("[{}]{}".format(origin, xpub["pubkey"]))
@@ -560,7 +579,8 @@ class TestDisplayAddress(DeviceTestCase):
                     else:
                         args = ['displayaddress', '--path', path, '--redeem_script', rs]
                         if addrtype != "pkh":
-                            args.append("--{}".format(addrtype))
+                            args.append("--addr-type")
+                            args.append(addrtype)
 
                     result = self.do_command(self.dev_args + args)
                     self.assertNotIn('error', result)
@@ -576,10 +596,10 @@ class TestDisplayAddress(DeviceTestCase):
 
     def test_display_address_xpub_multisig(self):
         if self.full_type not in SUPPORTS_XPUB_MS_DISPLAY:
-            raise unittest.SkipTest("{} does not support multsig display with xpubs".format(self.full_type))
+            raise unittest.SkipTest("{} does not support multisig display with xpubs".format(self.full_type))
 
-        account_xpub = self.do_command(self.dev_args + ['getxpub', 'm/48h/1h/0h'])['xpub']
-        desc = 'wsh(multi(2,[' + self.fingerprint + '/48h/1h/0h]' + account_xpub + '/0/0,[' + self.fingerprint + '/48h/1h/0h]' + account_xpub + '/1/0))'
+        account_xpub = self.do_command(self.dev_args + ['getxpub', 'm/48h/1h/0h/0h'])['xpub']
+        desc = 'wsh(multi(2,[' + self.fingerprint + '/48h/1h/0h/0h]' + account_xpub + '/0/0,[' + self.fingerprint + '/48h/1h/0h/0h]' + account_xpub + '/1/0))'
         result = self.do_command(self.dev_args + ['displayaddress', '--desc', desc])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
