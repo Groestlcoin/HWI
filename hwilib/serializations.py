@@ -66,7 +66,7 @@ def hash160(s: bytes) -> bytes:
     return ripemd160(sha256(s))
 
 def groestl(s: bytes) -> bytes:
-    return groestlcoin_hash.getHash(s, len(s))
+    return groestlcoin_hash.getHash(bytes(s), len(s))
 
 class AddressType(Enum):
     PKH = 1
