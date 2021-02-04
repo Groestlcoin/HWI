@@ -19,6 +19,12 @@ class KeepkeyClient(TrezorClient):
         super(KeepkeyClient, self).__init__(path, password, expert)
         self.type = 'Keepkey'
 
+    def _check_unlocked(self):
+        self.coin_name = 'GRS Testnet' if self.is_testnet else 'Groestlcoin'
+        self.client.init_device()
+        if self.client.features.pin_protection and not self.client.features.pin_cached:
+            raise DeviceNotReadyError('{} is locked. Unlock by using \'promptpin\' and then \'sendpin\'.'.format(self.type))
+
 def enumerate(password=''):
     results = []
     for dev in enumerate_devices():
