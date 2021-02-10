@@ -255,7 +255,7 @@ class TrezorClient(HardwareWalletClient):
                     p2wsh = True
 
                 def ignore_input():
-                    txinputtype.address_n = [0x80000000 | 84, 0x80000000 | (1 if self.is_testnet else 0), 0x80000000, 0, 0]
+                    txinputtype.address_n = [0x80000000 | 84, 0x80000000 | (1 if self.is_testnet else 17), 0x80000000, 0, 0]
                     txinputtype.multisig = None
                     txinputtype.script_type = proto.InputScriptType.SPENDWITNESS
                     inputs.append(txinputtype)
