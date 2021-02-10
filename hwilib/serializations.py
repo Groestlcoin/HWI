@@ -326,6 +326,35 @@ def is_p2wsh(script: bytes) -> bool:
         return False
     return len(wit_prog) == 32
 
+# Only handles up to 15 of 15. Returns None if this script is not a
+# multisig script. Returns (m, pubkeys) otherwise.
+def parse_multisig(script: bytes) -> Optional[Tuple[int, Sequence[bytes]]]:
+    # Get m
+    m = script[0] - 80
+    if m < 1 or m > 15:
+        return None
+
+    # Get pubkeys
+    pubkeys = []
+    offset = 1
+    while True:
+        pubkey_len = script[offset]
+        if pubkey_len != 33:
+            break
+        offset += 1
+        pubkeys.append(script[offset:offset + 33])
+        offset += 33
+
+    # Check things at the end
+    n = script[offset] - 80
+    if n != len(pubkeys):
+        return None
+    offset += 1
+    op_cms = script[offset]
+    if op_cms != 174:
+        return None
+
+    return (m, pubkeys)
 
 class CTxOut(object):
     def __init__(self, nValue: int = 0, scriptPubKey: bytes = b""):
@@ -347,6 +376,9 @@ class CTxOut(object):
 
     def is_p2sh(self) -> bool:
         return is_p2sh(self.scriptPubKey)
+
+    def is_p2wsh(self) -> bool:
+        return is_p2wsh(self.scriptPubKey)
 
     def is_p2pkh(self) -> bool:
         return is_p2pkh(self.scriptPubKey)
@@ -524,9 +556,10 @@ def DeserializeHDKeypath(
     f: Readable,
     key: bytes,
     hd_keypaths: MutableMapping[bytes, KeyOriginInfo],
+    expected_sizes: Sequence[int],
 ) -> None:
-    if len(key) != 34 and len(key) != 66:
-        raise PSBTSerializationError("Size of key was not the expected size for the type partial signature pubkey")
+    if len(key) not in expected_sizes:
+        raise PSBTSerializationError("Size of key was not the expected size for the type partial signature pubkey. Length: {}".format(len(key)))
     pubkey = key[1:]
     if pubkey in hd_keypaths:
         raise PSBTSerializationError("Duplicate key, input partial signature for pubkey already provided")
@@ -633,7 +666,7 @@ class PartiallySignedInput:
                 self.witness_script = deser_string(f)
 
             elif key_type == 6:
-                DeserializeHDKeypath(f, key, self.hd_keypaths)
+                DeserializeHDKeypath(f, key, self.hd_keypaths, [34, 66])
 
             elif key_type == 7:
                 if len(self.final_script_sig) != 0:
@@ -748,7 +781,7 @@ class PartiallySignedOutput:
                 self.witness_script = deser_string(f)
 
             elif key_type == 2:
-                DeserializeHDKeypath(f, key, self.hd_keypaths)
+                DeserializeHDKeypath(f, key, self.hd_keypaths, [34, 66])
 
             else:
                 if key in self.unknown:
@@ -786,6 +819,7 @@ class PSBT(object):
         self.inputs: List[PartiallySignedInput] = []
         self.outputs: List[PartiallySignedOutput] = []
         self.unknown: Dict[bytes, bytes] = {}
+        self.xpub: Dict[bytes, KeyOriginInfo] = {}
 
     def deserialize(self, psbt: str) -> None:
         psbt_bytes = base64.b64decode(psbt.strip())
@@ -828,7 +862,8 @@ class PSBT(object):
                 for txin in self.tx.vin:
                     if len(txin.scriptSig) != 0 or not self.tx.wit.is_null():
                         raise PSBTSerializationError("Unsigned tx does not have empty scriptSigs and scriptWitnesses")
-
+            elif key_type == 0x01:
+                DeserializeHDKeypath(f, key, self.xpub, [79])
             else:
                 if key in self.unknown:
                     raise PSBTSerializationError("Duplicate key, key for unknown value already provided")
@@ -879,6 +914,9 @@ class PSBT(object):
         tx = self.tx.serialize_with_witness()
         r += ser_compact_size(len(tx))
         r += tx
+
+        # write xpubs
+        r += SerializeHDKeypath(self.xpub, b"\x01")
 
         # unknowns
         for key, value in sorted(self.unknown.items()):
