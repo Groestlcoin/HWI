@@ -4,21 +4,21 @@
 # Copyright (c) 2010-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Bitcoin Object Python Serializations
+"""Groestlcoin Object Python Serializations
 
 Modified from the test/test_framework/mininode.py file from the
-Bitcoin repository
+Groestlcoin repository
 
 CTransaction,CTxIn, CTxOut, etc....:
     data structures that should map to corresponding structures in
-    bitcoin/primitives for transactions only
+    groestlcoin/primitives for transactions only
 """
 
 import copy
 import struct
 
 from .common import (
-    hash256,
+    sha256,
 )
 from ._script import (
     is_opreturn,
@@ -285,11 +285,11 @@ class CTransaction(object):
     def calc_sha256(self, with_witness: bool = False) -> Optional[int]:
         if with_witness:
             # Don't cache the result, just return it
-            return uint256_from_str(hash256(self.serialize_with_witness()))
+            return uint256_from_str(sha256(self.serialize_with_witness()))
 
         if self.sha256 is None:
-            self.sha256 = uint256_from_str(hash256(self.serialize_without_witness()))
-        self.hash = hash256(self.serialize())[::-1].hex()
+            self.sha256 = uint256_from_str(sha256(self.serialize_without_witness()))
+        self.hash = sha256(self.serialize())[::-1].hex()
         return None
 
     def is_null(self) -> bool:

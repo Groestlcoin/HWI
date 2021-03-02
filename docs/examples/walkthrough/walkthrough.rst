@@ -1,26 +1,26 @@
-Walkthrough: Using a Hardware Wallet with Bitcoin Core Wallet
+Walkthrough: Using a Hardware Wallet with Groestlcoin Core Wallet
 ******************************************************************
 
-Summary: On this page we describe step-by-step and show in screenshots how to use a hardware wallet and HWI 
-together with a Bitcoin Core Wallet. As hardware wallet example we have used a Trezor.
+Summary: On this page we describe step-by-step and show in screenshots how to use a hardware wallet and HWI
+together with a Groestlcoin Core Wallet. As hardware wallet example we have used a Trezor.
 
-Create a watch-only Bitcoin Core wallet for Trezor
+Create a watch-only Groestlcoin Core wallet for Trezor
 ==================================================
 
-Create your watch-only Bitcoin Core Wallet as described in `Using Bitcoin Core with Hardware Wallets <../bitcoin-core-usage.rst>`_. 
-You find all the details well described in this link. But in summary, one opens a terminal and runs ``bitcoind``. E.g.
+Create your watch-only Groestlcoin Core Wallet as described in `Using Groestlcoin Core with Hardware Wallets <../groestlcoin-core-usage.rst>`_.
+You find all the details well described in this link. But in summary, one opens a terminal and runs ``groestlcoind``. E.g.
 
 ::
 
-  bitcoind -testnet  -datadir=$HOME/.bitcoin-testnet
+  groestlcoind -testnet  -datadir=$HOME/.groestlcoin-testnet
 
-for a testnet ``bitcoind`` daemon, or
+for a testnet ``groestlcoind`` daemon, or
 
 ::
 
-  bitcoind
+  groestlcoind
 
-for a mainnet, i.e. regular, ``bitcoind`` daemon.
+for a mainnet, i.e. regular, ``groestlcoind`` daemon.
 
 Then in another terminal run commands similar to these, adapted to your environment:
 
@@ -30,29 +30,29 @@ Then in another terminal run commands similar to these, adapted to your environm
   FINGERPRINT_TESTNET="yourHardwareWalletFingerprint" # shown by "hwi enumerate"
   # in this example we use SEGWIT BECH32 ADDRESSES
   DERIVATIONPATH_TESTNET=1 # testnet uses derivation paths like m/84h/1h/0h/0/* and m/84h/1h/0h/1/*
-  DERIVATIONPATH_MAINNET=0 # mainnet uses derivation paths like m/84h/0h/0h/0/* and m/84h/0h/0h/1/*
-  # if the mainnet path is used on testnet, it will work too, but Trezor device gives warnings 
+  DERIVATIONPATH_MAINNET=17 # mainnet uses derivation paths like m/84h/17h/0h/0/* and m/84h/17h/0h/1/*
+  # if the mainnet path is used on testnet, it will work too, but Trezor device gives warnings
   # of unknown address on Trezor display. This is not recommended. Use the correct derivation path
   # for the corresponding network!
   wallet=wallet.test
   rec=$(hwi --testnet -f $FINGERPRINT_TESTNET getkeypool --addr-type wpkh --path m/84h/${DERIVATIONPATH_TESTNET}h/0h/0/* --keypool 0 1000)
   chg=$(hwi --testnet -f $FINGERPRINT_TESTNET getkeypool --addr-type wpkh --path m/84h/${DERIVATIONPATH_TESTNET}h/0h/1/* --keypool --internal 0 1000)
-  bitcoin-cli -testnet createwallet "$wallet" true
-  bitcoin-cli -testnet -rpcwallet="$wallet" importmulti "$rec"
-  bitcoin-cli -testnet -rpcwallet="$wallet" importmulti "$chg"
+  groestlcoin-cli -testnet createwallet "$wallet" true
+  groestlcoin-cli -testnet -rpcwallet="$wallet" importmulti "$rec"
+  groestlcoin-cli -testnet -rpcwallet="$wallet" importmulti "$chg"
   echo "If the hardware wallet has been used before and holds funds then you should rescan. Rescanning might take 30 minutes."
-  bitcoin-cli -testnet -rpcwallet="$wallet" rescanblockchain # full rescan
+  groestlcoin-cli -testnet -rpcwallet="$wallet" rescanblockchain # full rescan
   # after rescan unload wallet
-  bitcoin-cli -testnet -rpcwallet="$wallet" unloadwallet
+  groestlcoin-cli -testnet -rpcwallet="$wallet" unloadwallet
 
-This script needs to be adapted to your needs. If you are creating a wallet for mainnet get rid of ``-testnet`` and ``--testnet`` and 
-use ``DERIVATIONPATH_MAINNET`` instead of ``DERIVATIONPATH_TESTNET``. Adapt the derivation paths to your needs. 
-Now that the watch-only Bitcoin Core wallet has been created, stop ``bitcoind`` with control-C. We are ready to use the wallet.
+This script needs to be adapted to your needs. If you are creating a wallet for mainnet get rid of ``-testnet`` and ``--testnet`` and
+use ``DERIVATIONPATH_MAINNET`` instead of ``DERIVATIONPATH_TESTNET``. Adapt the derivation paths to your needs.
+Now that the watch-only Groestlcoin Core wallet has been created, stop ``groestlcoind`` with control-C. We are ready to use the wallet.
 
-Send funds with Bitcoin Core and Trezor using HWI
+Send funds with Groestlcoin Core and Trezor using HWI
 =================================================
 
-* our example does everything on the Bitcoin testnet, so watch out, your addresses and paths will differ
+* our example does everything on the Groestlcoin testnet, so watch out, your addresses and paths will differ
 * TREZOR: plug in your hardware wallet, e.g. your Trezor, put in the PIN if any
 * HWI: type ``hwi-qt.py --testnet`` to start HWI GUI for testnet (type ``hwi-qt.py`` to start HWI GUI for mainnet)
 
@@ -63,16 +63,16 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot02_HWI_HWW-Selected.png
 
-* CORE: start Bitcoin Core wallet, e.g. ``bitcoin-qt -testnet`` (or ``bitcoin-qt`` for mainnet)
+* CORE: start Groestlcoin Core wallet, e.g. ``groestlcoin-qt -testnet`` (or ``groestlcoin-qt`` for mainnet)
 
 .. image:: Screenshot03-Core-Initial-Wallet-Overview.png
 
 * on the very first run it might be a good idea to verify that the wallet has been created correctly
 * on first run **verify your wallet** (optional)
-* HWI: HWI GUI -> "Display Address", since we use BECH32 address, select "P2WPKH", 
-  enter "m/84h/1h/0h/0/0" (testnet derivation path) (or "m/84h/0h/0h/0/0" on mainnet). 
-  This path represents the first receiving address. Click "Go". 
-  In our example, it shows address "tb1q0r2gn9wzfjm5j5zshx5yp5342h928c8pmllfep".
+* HWI: HWI GUI -> "Display Address", since we use BECH32 address, select "P2WPKH",
+  enter "m/84h/1h/0h/0/0" (testnet derivation path) (or "m/84h/17h/0h/0/0" on mainnet).
+  This path represents the first receiving address. Click "Go".
+  In our example, it shows address "tgrs1q0r2gn9wzfjm5j5zshx5yp5342h928c8pmllfep".
 
 .. image:: Screenshot04_HWI_Address-Display-Request.png
 
@@ -80,7 +80,7 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot06_HWI_Address-Display-Response.png
 
-* CORE: In Core Wallet, open "Console", enter ``getaddressinfo tb1q0r2gn9wzfjm5j5zshx5yp5342h928c8pmllfep``, 
+* CORE: In Core Wallet, open "Console", enter ``getaddressinfo tgrs1q0r2gn9wzfjm5j5zshx5yp5342h928c8pmllfep``,
   observe these values:
   It is crucial that ``solvable`` shows as ``true``!
 
@@ -90,10 +90,10 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot07_Core_Console-getaddressinfo.png
 
-* HWI: In HWI GUI main window click "Display Address", since we use BECH32 address, 
-  select "P2WPKH", enter "m/84h/1h/0h/1/0" (testnet derivation path) (or "m/84h/0h/0h/1/0" on mainnet).
-  This path represents the first change address. Click "Go". 
-  In our example it shows address "tb1qca3u0ka22c934jfqw7gjr9vg4gwwjldpzatrh5".
+* HWI: In HWI GUI main window click "Display Address", since we use BECH32 address,
+  select "P2WPKH", enter "m/84h/1h/0h/1/0" (testnet derivation path) (or "m/84h/17h/0h/1/0" on mainnet).
+  This path represents the first change address. Click "Go".
+  In our example it shows address "tgrs1qca3u0ka22c934jfqw7gjr9vg4gwwjldpzatrh5".
 
 .. image:: Screenshot08_HWI_Address-Display-Request.png
 
@@ -101,8 +101,8 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot10_HWI_Address-Display-Response.png
 
-* CORE: In Core Wallet, open "Console", enter ``getaddressinfo tb1qca3u0ka22c934jfqw7gjr9vg4gwwjldpzatrh5``, 
-  observe these values: 
+* CORE: In Core Wallet, open "Console", enter ``getaddressinfo tgrs1qca3u0ka22c934jfqw7gjr9vg4gwwjldpzatrh5``,
+  observe these values:
   It is crucial that ``solvable`` shows as ``true``!
 
   * "solvable": true,
@@ -111,14 +111,14 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot11_Core_Console-getaddressinfo.png
 
-* If you see the same addresses for the same paths on Trezor, in HWI and in Bitcoin Core Wallet 
-  you can rest assured that the wallet has been created correctly and 
-  that the Bitcoin Core wallet corresponds to your Trezor device.
+* If you see the same addresses for the same paths on Trezor, in HWI and in Groestlcoin Core Wallet
+  you can rest assured that the wallet has been created correctly and
+  that the Groestlcoin Core wallet corresponds to your Trezor device.
 
 * Now let us **send funds**.
 
-* CORE: To send funds, open the "Send" tab in Bitcoin Core Wallet, 
-  then select input, amount, fees, etc. Once satisifed, click "Create Unsigned", 
+* CORE: To send funds, open the "Send" tab in Groestlcoin Core Wallet,
+  then select input, amount, fees, etc. Once satisifed, click "Create Unsigned",
   verify any displayed information, then click "Create Unsigned" again.
   The PSBT (Partially Signed Bitcoin Transaction) is now on the clipboard.
 
@@ -128,7 +128,7 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot14_Core_Paste-PSBT-to-Clipboard.png
 
-* HWI: In HWI GUI main window click "Sign PSBT", then paste PSBT from clipboard 
+* HWI: In HWI GUI main window click "Sign PSBT", then paste PSBT from clipboard
   into the above text field. After paste, click "Sign PSBT".
 
 .. image:: Screenshot15_HWI_Empty-PSBT.png
@@ -143,27 +143,27 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot19_HWW_Confirm-Amount-Fees.png
 
-* CORE: Trezor prints blockheight of locktime which can optionally be verified in 
-  Bitcoin Core Wallet (Console -> ``getblockcount``). For a simple send the locktime
+* CORE: Trezor prints blockheight of locktime which can optionally be verified in
+  Groestlcoin Core Wallet (Console -> ``getblockcount``). For a simple send the locktime
   is now and you should get the current blockheight.
 
 .. image:: Screenshot20_Core_Console_getblockcount.png
 
-* HWI: upon accepting on Trezor, the HWI bottom text area is filled. 
+* HWI: upon accepting on Trezor, the HWI bottom text area is filled.
   Select the bottom output, and copy full output from the bottom text area to the clipboard
 
 .. image:: Screenshot21_HWI_Show-Signed-PSBT.png
 
-* CORE: In Bitcoin Core Wallet, go to the pull-down menu: select File -> Load from Clipboard.
+* CORE: In Groestlcoin Core Wallet, go to the pull-down menu: select File -> Load from Clipboard.
 
 .. image:: Screenshot22_Core_Broadcast-Signed-PSBT.png
 
-* CORE: In Core Wallet, visually verify again, then click "Broadcast Tx" button. 
+* CORE: In Core Wallet, visually verify again, then click "Broadcast Tx" button.
   Once broadcasted, click "Close".
-  The funds have been sent to the mempool awaiting confirmations on the Bitcoin network.
+  The funds have been sent to the mempool awaiting confirmations on the Groestlcoin network.
 
-* CORE: In Core Wallet, go to "Transactions" tab. Here you can find the just 
-  sent transaction in the top line. Wait for confirmations. 
+* CORE: In Core Wallet, go to "Transactions" tab. Here you can find the just
+  sent transaction in the top line. Wait for confirmations.
 
 .. image:: Screenshot23_Core_Transactions-Tab.png
 
@@ -171,7 +171,7 @@ Send funds with Bitcoin Core and Trezor using HWI
 
 .. image:: Screenshot24_Core_Transaction-Details.png
 
-* CORE: Optionally, one can also see the transaction details in the 
+* CORE: Optionally, one can also see the transaction details in the
   Console -> ``gettransaction 58d9dccd190250742c47733f3c0f0d33075d65621196434f163f92b69847843f``
 
 .. image:: Screenshot25_Core_Console-gettransaction.png
@@ -185,4 +185,4 @@ Versions Used
 
 * This walk-trough was done in Janary 2021
 * HWI version 1.2.1
-* Bitcoin 0.21.0
+* Groestlcoin 2.21.0
