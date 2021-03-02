@@ -3,7 +3,18 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-from . import base58
+"""
+Key Classes and Utilities
+*************************
+
+Classes and utilities for working with extended public keys, key origins, and other key related things.
+"""
+
+from . import _base58 as base58
+from .common import (
+    hash256,
+    hash160,
+)
 from .errors import BadArgumentError
 
 import binascii
@@ -90,6 +101,9 @@ def point_to_bytes(p: Point) -> bytes:
 # An extended public key (xpub) or private key (xprv). Just a data container for now.
 # Only handles deserialization of extended keys into component data to be handled by something else
 class ExtendedKey(object):
+    """
+    A BIP 32 extended public key.
+    """
 
     MAINNET_PUBLIC = b'\x04\x88\xB2\x1E'
     MAINNET_PRIVATE = b'\x04\x88\xAD\xE4'
@@ -97,6 +111,15 @@ class ExtendedKey(object):
     TESTNET_PRIVATE = b'\x04\x35\x83\x94'
 
     def __init__(self, version: bytes, depth: int, parent_fingerprint: bytes, child_num: int, chaincode: bytes, privkey: Optional[bytes], pubkey: bytes) -> None:
+        """
+        :param version: The version bytes for this xpub
+        :param depth: The depth of this xpub as defined in BIP 32
+        :param parent_fingerprint: The 4 byte fingerprint of the parent xpub as defined in BIP 32
+        :param child_num: The number of this xpub as defined in BIP 32
+        :param chaincode: The chaincode of this xpub as defined in BIP 32
+        :param privkey: The private key for this xpub if available
+        :param pubkey: The public key for this xpub
+        """
         self.version: bytes = version
         self.is_testnet: bool = version == ExtendedKey.TESTNET_PUBLIC or version == ExtendedKey.TESTNET_PRIVATE
         self.is_private: bool = version == ExtendedKey.MAINNET_PRIVATE or version == ExtendedKey.TESTNET_PRIVATE
@@ -109,6 +132,11 @@ class ExtendedKey(object):
 
     @classmethod
     def deserialize(cls, xpub: str) -> 'ExtendedKey':
+        """
+        Create an :class:`~ExtendedKey` from a Base58 check encoded xpub
+
+        :param xpub: The Base58 check encoded xpub
+        """
         data = base58.decode(xpub)[:-4] # Decoded xpub without checksum
 
         version = data[0:4]
@@ -129,6 +157,12 @@ class ExtendedKey(object):
             return cls(version, depth, parent_fingerprint, child_num, chaincode, None, pubkey)
 
     def serialize(self) -> bytes:
+        """
+        Serialize the ExtendedKey with the serialization format described in BIP 32.
+        Does not create an xpub string, but the bytes serialized here can be Base58 check encoded into one.
+
+        :return: BIP 32 serialized extended key
+        """
         r = self.version + struct.pack('B', self.depth) + self.parent_fingerprint + struct.pack('>I', self.child_num) + self.chaincode
         if self.is_private:
             if self.privkey is None:
@@ -139,11 +173,21 @@ class ExtendedKey(object):
         return r
 
     def to_string(self) -> str:
+        """
+        Serialize the ExtendedKey as a Base58 check encoded xpub string
+
+        :return: Base58 check encoded xpub
+        """
         data = self.serialize()
         checksum = groestlcoin_hash.getHash(data, len(data))[0:4]
         return base58.encode(data + checksum)
 
     def get_printable_dict(self) -> Dict[str, object]:
+        """
+        Get the attributes of this ExtendedKey as a dictionary that can be printed
+
+        :return: Dictionary containing ExtendedKey information that can be printed
+        """
         d: Dict[str, object] = {}
         d['testnet'] = self.is_testnet
         d['private'] = self.is_private
@@ -157,6 +201,11 @@ class ExtendedKey(object):
         return d
 
     def derive_pub(self, i: int) -> 'ExtendedKey':
+        """
+        Derive the public key at the given child index.
+
+        :param i: The child index of the pubkey to derive
+        """
         if is_hardened(i):
             raise ValueError("Index cannot be larger than 2^31")
 
@@ -175,10 +224,15 @@ class ExtendedKey(object):
         # Construct and return a new BIP32Key
         pubkey = point_to_bytes(child_pubkey)
         chaincode = Ir
-        fingerprint = hashlib.new('ripemd160', hashlib.sha256(self.pubkey).digest()).digest()[0:4]
+        fingerprint = hash160(self.pubkey)[0:4]
         return ExtendedKey(ExtendedKey.TESTNET_PUBLIC if self.is_testnet else ExtendedKey.MAINNET_PUBLIC, self.depth + 1, fingerprint, i, chaincode, None, pubkey)
 
     def derive_pub_path(self, path: Sequence[int]) -> 'ExtendedKey':
+        """
+        Derive the public key at the given path
+
+        :param path: Sequence of integers for the path of the pubkey to derive
+        """
         key = self
         for i in path:
             key = key.derive_pub(i)
@@ -186,7 +240,14 @@ class ExtendedKey(object):
 
 
 class KeyOriginInfo(object):
+    """
+    Object representing the origin of a key.
+    """
     def __init__(self, fingerprint: bytes, path: Sequence[int]) -> None:
+        """
+        :param fingerprint: The 4 byte BIP 32 fingerprint of a parent key from which this key is derived from
+        :param path: The derivation path to reach this key from the key at ``fingerprint``
+        """
         self.fingerprint: bytes = fingerprint
         self.path: Sequence[int] = path
 
@@ -249,12 +310,6 @@ class KeyOriginInfo(object):
         """
         return "m" + self._path_string()
 
-    def get_fingerprint_hex(self) -> str:
-        """
-        Return the hex for just the fingerprint
-        """
-        return binascii.hexlify(self.fingerprint).decode()
-
     def get_full_int_list(self) -> List[int]:
         """
         Return a list of ints representing this KeyOriginInfo.
@@ -265,7 +320,7 @@ class KeyOriginInfo(object):
         return xfp
 
 
-def parse_path(nstr: str) -> Sequence[int]:
+def parse_path(nstr: str) -> List[int]:
     """
     Convert BIP32 path string to list of uint32 integers with hardened flags.
     Several conventions are supported to set the hardened flag: -1, 1', 1h

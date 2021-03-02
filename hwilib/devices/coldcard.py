@@ -1,4 +1,7 @@
-# Coldcard interaction script
+"""
+Coldcard
+********
+"""
 
 from typing import (
     Dict,
@@ -37,18 +40,20 @@ from .ckcc.constants import (
     AF_P2SH,
     AF_P2WSH_P2SH,
 )
-from ..base58 import (
+from .._base58 import (
     get_xpub_fingerprint,
-    xpub_main_2_test,
 )
 from ..key import (
     ExtendedKey,
 )
-from ..serializations import (
-    AddressType,
+from ..psbt import (
     PSBT,
 )
-from ..common import Chain
+from ..common import (
+    AddressType,
+    Chain,
+)
+from functools import wraps
 from hashlib import sha256
 
 import base64
@@ -57,14 +62,20 @@ import io
 import sys
 import time
 import struct
-from binascii import hexlify, b2a_hex
+
+from binascii import b2a_hex
+from typing import (
+    Any,
+    Callable,
+)
 
 CC_SIMULATOR_SOCK = '/tmp/ckcc-simulator.sock'
 # Using the simulator: https://github.com/Coldcard/firmware/blob/master/unix/README.md
 
 
-def coldcard_exception(f):
-    def func(*args, **kwargs):
+def coldcard_exception(f: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(f)
+    def func(*args: Any, **kwargs: Any) -> Any:
         try:
             return f(*args, **kwargs)
         except CCProtoError as e:
@@ -78,7 +89,7 @@ def coldcard_exception(f):
 # This class extends the HardwareWalletClient for ColdCard specific things
 class ColdcardClient(HardwareWalletClient):
 
-    def __init__(self, path, password='', expert=False):
+    def __init__(self, path: str, password: str = "", expert: bool = False) -> None:
         super(ColdcardClient, self).__init__(path, password, expert)
         # Simulator hard coded pipe socket
         if path == CC_SIMULATOR_SOCK:
@@ -88,31 +99,30 @@ class ColdcardClient(HardwareWalletClient):
             device.open_path(path.encode())
             self.device = ColdcardDevice(dev=device)
 
-    # Must return a dict with the xpub
-    # Retrieves the public key at the specified BIP 32 derivation path
     @coldcard_exception
-    def get_pubkey_at_path(self, path):
+    def get_pubkey_at_path(self, path: str) -> ExtendedKey:
         self.device.check_mitm()
         path = path.replace('h', '\'')
         path = path.replace('H', '\'')
-        xpub = self.device.send_recv(CCProtocolPacker.get_xpub(path), timeout=None)
+        xpub_str = self.device.send_recv(CCProtocolPacker.get_xpub(path), timeout=None)
+        xpub = ExtendedKey.deserialize(xpub_str)
         if self.chain != Chain.MAIN:
-            result = {'xpub': xpub_main_2_test(xpub)}
-        else:
-            result = {'xpub': xpub}
-        if self.expert:
-            xpub_obj = ExtendedKey.deserialize(xpub)
-            result.update(xpub_obj.get_printable_dict())
-        return result
+            xpub.version = ExtendedKey.TESTNET_PUBLIC
+        return xpub
 
-    def get_master_fingerprint_hex(self):
+    def get_master_fingerprint(self) -> bytes:
         # quick method to get fingerprint of wallet
-        return hexlify(struct.pack('<I', self.device.master_fingerprint)).decode()
+        return struct.pack('<I', self.device.master_fingerprint)
 
-    # Must return a hex string with the signed transaction
-    # The tx must be in the combined unsigned transaction format
     @coldcard_exception
-    def sign_tx(self, tx):
+    def sign_tx(self, tx: PSBT) -> PSBT:
+        """
+        Sign a transaction with the Coldcard.
+
+        - The Coldcard firmware only supports signing single key and multisig transactions. It cannot sign arbitrary scripts.
+        - Multisigs need to be registered on the device before a transaction spending that multisig will be signed by the device.
+        - Multisigs must use BIP 67. This can be accomplished in Bitcoin Core using the `sortedmulti()` descriptor, available in Bitcoin Core 0.20.
+        """
         self.device.check_mitm()
 
         # Get this devices master key fingerprint
@@ -180,10 +190,11 @@ class ColdcardClient(HardwareWalletClient):
 
             tx = PSBT()
             tx.deserialize(base64.b64encode(result).decode())
-        return {'psbt': tx.serialize()}
+
+        return tx
 
     @coldcard_exception
-    def sign_message(self, message: Union[str, bytes], keypath: str) -> Dict[str, str]:
+    def sign_message(self, message: Union[str, bytes], keypath: str) -> str:
         self.device.check_mitm()
         keypath = keypath.replace('h', '\'')
         keypath = keypath.replace('H', '\'')
@@ -212,15 +223,14 @@ class ColdcardClient(HardwareWalletClient):
         _, raw = done
 
         sig = str(base64.b64encode(raw), 'ascii').replace('\n', '')
-        return {"signature": sig}
+        return sig
 
-    # Display address of specified type on the device.
     @coldcard_exception
     def display_singlesig_address(
         self,
         keypath: str,
         addr_type: AddressType,
-    ) -> Dict[str, str]:
+    ) -> str:
         self.device.check_mitm()
         keypath = keypath.replace('h', '\'')
         keypath = keypath.replace('H', '\'')
@@ -235,10 +245,11 @@ class ColdcardClient(HardwareWalletClient):
         payload = CCProtocolPacker.show_address(keypath, addr_fmt=addr_fmt)
 
         address = self.device.send_recv(payload, timeout=None)
+        assert isinstance(address, str)
 
         if self.device.is_simulator:
             self.device.send_recv(CCProtocolPacker.sim_keypress(b'y'))
-        return {'address': address}
+        return address
 
     @coldcard_exception
     def display_multisig_address(
@@ -246,7 +257,7 @@ class ColdcardClient(HardwareWalletClient):
         threshold: int,
         pubkeys: List[PubkeyProvider],
         addr_type: AddressType,
-    ) -> Dict[str, str]:
+    ) -> str:
         self.device.check_mitm()
 
         if addr_type == AddressType.SH_WPKH:
@@ -276,26 +287,45 @@ class ColdcardClient(HardwareWalletClient):
         payload = CCProtocolPacker.show_p2sh_address(threshold, xfp_paths, redeem_script, addr_fmt=addr_fmt)
 
         address = self.device.send_recv(payload, timeout=None)
+        assert isinstance(address, str)
 
         if self.device.is_simulator:
             self.device.send_recv(CCProtocolPacker.sim_keypress(b'y'))
-        return {'address': address}
+        return address
 
-    # Setup a new device
-    def setup_device(self, label='', passphrase=''):
+    def setup_device(self, label: str = "", passphrase: str = "") -> bool:
+        """
+        The Coldcard does not support setup via software.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not support software setup')
 
-    # Wipe this device
-    def wipe_device(self):
+    def wipe_device(self) -> bool:
+        """
+        The Coldcard does not support wiping via software.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not support wiping via software')
 
-    # Restore device from mnemonic or xprv
-    def restore_device(self, label='', word_count=24):
+    def restore_device(self, label: str = "", word_count: int = 24) -> bool:
+        """
+        The Coldcard does not support restoring via software.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not support restoring via software')
 
-    # Begin backup process
     @coldcard_exception
-    def backup_device(self, label='', passphrase=''):
+    def backup_device(self, label: str = "", passphrase: str = "") -> bool:
+        """
+        Creates a backup file in the current working directory. This file is protected by the
+        passphrase shown on the Coldcard.
+
+        :param label: Value is ignored
+        :param passphrase: Value is ignored
+        """
         self.device.check_mitm()
 
         ok = self.device.send_recv(CCProtocolPacker.start_backup())
@@ -321,30 +351,41 @@ class ColdcardClient(HardwareWalletClient):
         result = self.device.download_file(result_len, result_sha, file_number=0)
         filename = time.strftime('backup-%Y%m%d-%H%M.7z')
         open(filename, 'wb').write(result)
-        return {'success': True, 'message': 'The backup has been written to {}'.format(filename)}
+        return True
 
-    # Close the device
-    def close(self):
+    def close(self) -> None:
         self.device.close()
 
-    # Prompt pin
-    def prompt_pin(self):
+    def prompt_pin(self) -> bool:
+        """
+        The Coldcard does not need a PIN sent from the host.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not need a PIN sent from the host')
 
-    # Send pin
-    def send_pin(self, pin):
+    def send_pin(self, pin: str) -> bool:
+        """
+        The Coldcard does not need a PIN sent from the host.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not need a PIN sent from the host')
 
-    # Toggle passphrase
-    def toggle_passphrase(self):
+    def toggle_passphrase(self) -> bool:
+        """
+        The Coldcard does not support toggling passphrase from the host.
+
+        :raises UnavailableActionError: Always, this function is unavailable
+        """
         raise UnavailableActionError('The Coldcard does not support toggling passphrase from the host')
 
-def enumerate(password=''):
+def enumerate(password: str = "") -> List[Dict[str, Any]]:
     results = []
     devices = hid.enumerate(COINKITE_VID, CKCC_PID)
     devices.append({'path': CC_SIMULATOR_SOCK.encode()})
     for d in devices:
-        d_data = {}
+        d_data: Dict[str, Any] = {}
 
         path = d['path'].decode()
         d_data['type'] = 'coldcard'
@@ -360,7 +401,7 @@ def enumerate(password=''):
         with handle_errors(common_err_msgs["enumerate"], d_data):
             try:
                 client = ColdcardClient(path)
-                d_data['fingerprint'] = client.get_master_fingerprint_hex()
+                d_data['fingerprint'] = client.get_master_fingerprint().hex()
             except RuntimeError as e:
                 # Skip the simulator if it's not there
                 if str(e) == 'Cannot connect to simulator. Is it running?':

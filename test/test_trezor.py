@@ -17,7 +17,7 @@ from hwilib.devices.trezorlib.debuglink import TrezorClientDebugLink, load_devic
 from hwilib.devices.trezorlib import device, messages
 from test_device import DeviceEmulator, DeviceTestCase, start_bitcoind, TestDeviceConnect, TestDisplayAddress, TestGetKeypool, TestGetDescriptors, TestSignMessage, TestSignTx
 
-from hwilib.cli import process_commands
+from hwilib._cli import process_commands
 from hwilib.devices.trezor import TrezorClient
 
 from types import MethodType
@@ -188,7 +188,7 @@ class TestTrezorManCommands(TrezorTestCase):
         t_client.client.ui.get_pin = MethodType(get_pin, t_client.client.ui)
         t_client.client.ui.pin = '1234'
         result = t_client.setup_device()
-        self.assertTrue(result['success'])
+        self.assertTrue(result)
 
         # Make sure device is init, setup should fail
         result = self.do_command(self.dev_args + ['-i', 'setup'])

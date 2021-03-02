@@ -86,8 +86,6 @@ pass the `--help` parameter after the command name; for example:
 
 The below table lists what devices and features are supported for each device.
 
-Please also see [docs](docs/) for additional information about each device.
-
 | Feature \ Device | Ledger Nano X | Ledger Nano S | Trezor One | Trezor Model T |
 |:---:|:---:|:---:|:---:|:---:|
 | Support Planned | Yes | Yes | Yes | Yes |
@@ -111,10 +109,6 @@ Please also see [docs](docs/) for additional information about each device.
 | Non-wallet inputs | Yes | Yes | Yes | Yes |
 | Mixed Segwit and Non-Segwit Inputs | N/A | N/A | Yes | Yes |
 | Display on device screen | Yes | Yes | Yes | Yes |
-
-## Using with Groestlcoin Core
-
-See [Using Groestlcoin Core with Hardware Wallets](docs/groestlcoin-core-usage.md).
 
 ## License
 

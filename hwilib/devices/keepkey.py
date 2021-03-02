@@ -1,4 +1,7 @@
-# KeepKey interaction script
+"""
+Keepkey
+*******
+"""
 
 from ..errors import (
     DEVICE_NOT_INITIALIZED,
@@ -20,7 +23,12 @@ from .trezorlib.messages import (
     ResetDevice,
 )
 
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 py_enumerate = enumerate # Need to use the enumerate built-in but there's another function already named that
 
@@ -31,20 +39,20 @@ HID_IDS.update(KEEPKEY_HID_IDS)
 WEBUSB_IDS.update(KEEPKEY_WEBUSB_IDS)
 
 
-class KeepkeyFeatures(Features):
+class KeepkeyFeatures(Features): # type: ignore
     def __init__(
         self,
         *,
-        firmware_variant: str = None,
-        firmware_hash: bytes = None,
-        **kwargs,
+        firmware_variant: Optional[str] = None,
+        firmware_hash: Optional[bytes] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.firmware_variant = firmware_variant
         self.firmware_hash = firmware_hash
 
     @classmethod
-    def get_fields(cls) -> Dict:
+    def get_fields(cls) -> Dict[int, p.FieldInfo]:
         return {
             1: ('vendor', p.UnicodeType, None),
             2: ('major_version', p.UVarintType, None),
@@ -69,18 +77,18 @@ class KeepkeyFeatures(Features):
         }
 
 
-class KeepkeyResetDevice(ResetDevice):
+class KeepkeyResetDevice(ResetDevice): # type: ignore
     def __init__(
         self,
         *,
-        auto_lock_delay_ms: int = None,
-        **kwargs,
+        auto_lock_delay_ms: Optional[int] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.auto_lock_delay_ms = auto_lock_delay_ms
 
     @classmethod
-    def get_fields(cls) -> Dict:
+    def get_fields(cls) -> Dict[int, p.FieldInfo]:
         return {
             1: ('display_random', p.BoolType, None),
             2: ('strength', p.UVarintType, 256),  # default=256
@@ -94,15 +102,15 @@ class KeepkeyResetDevice(ResetDevice):
         }
 
 
-class KeepkeyDebugLinkState(DebugLinkState):
+class KeepkeyDebugLinkState(DebugLinkState): # type: ignore
     def __init__(
         self,
         *,
-        recovery_cipher: str = None,
-        recovery_auto_completed_word: str = None,
-        firmware_hash: bytes = None,
-        storage_hash: bytes = None,
-        **kwargs,
+        recovery_cipher: Optional[str] = None,
+        recovery_auto_completed_word: Optional[str] = None,
+        firmware_hash: Optional[bytes] = None,
+        storage_hash: Optional[bytes] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.recovery_cipher = recovery_cipher
@@ -111,7 +119,7 @@ class KeepkeyDebugLinkState(DebugLinkState):
         self.storage_hash = storage_hash
 
     @classmethod
-    def get_fields(cls) -> Dict:
+    def get_fields(cls) -> Dict[int, p.FieldType]:
         return {
             1: ('layout', p.BytesType, None),
             2: ('pin', p.UnicodeType, None),
@@ -131,7 +139,12 @@ class KeepkeyDebugLinkState(DebugLinkState):
 
 
 class KeepkeyClient(TrezorClient):
-    def __init__(self, path, password='', expert=False):
+    def __init__(self, path: str, password: str = "", expert: bool = False) -> None:
+        """
+        The `KeepkeyClient` is a `HardwareWalletClient` for interacting with the Keepkey.
+
+        As Keepkeys are clones of the Trezor 1, please refer to `TrezorClient` for documentation.
+        """
         super(KeepkeyClient, self).__init__(path, password, expert)
         self.type = 'Keepkey'
         self.client.vendors = ("keepkey.com")
@@ -148,13 +161,13 @@ class KeepkeyClient(TrezorClient):
         if self.client.features.pin_protection and not self.client.features.pin_cached:
             raise DeviceNotReadyError('{} is locked. Unlock by using \'promptpin\' and then \'sendpin\'.'.format(self.type))
 
-def enumerate(password=''):
+def enumerate(password: str = "") -> List[Dict[str, Any]]:
     results = []
     devs = hid.HidTransport.enumerate(usb_ids=KEEPKEY_HID_IDS)
     devs.extend(webusb.WebUsbTransport.enumerate(usb_ids=KEEPKEY_WEBUSB_IDS))
     devs.extend(udp.UdpTransport.enumerate())
     for dev in devs:
-        d_data = {}
+        d_data: Dict[str, Any] = {}
 
         d_data['type'] = 'keepkey'
         d_data['model'] = 'keepkey'
@@ -181,7 +194,7 @@ def enumerate(password=''):
             if d_data['needs_passphrase_sent'] and not password:
                 raise DeviceNotReadyError("Passphrase needs to be specified before the fingerprint information can be retrieved")
             if client.client.features.initialized:
-                d_data['fingerprint'] = client.get_master_fingerprint_hex()
+                d_data['fingerprint'] = client.get_master_fingerprint().hex()
                 d_data['needs_passphrase_sent'] = False # Passphrase is always needed for the above to have worked, so it's already sent
             else:
                 d_data['error'] = 'Not initialized'

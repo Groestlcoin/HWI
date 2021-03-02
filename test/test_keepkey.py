@@ -16,7 +16,7 @@ from hwilib.devices.trezorlib.debuglink import TrezorClientDebugLink, load_devic
 from hwilib.devices.trezorlib import device, messages
 from test_device import DeviceEmulator, DeviceTestCase, start_bitcoind, TestDeviceConnect, TestDisplayAddress, TestGetKeypool, TestGetDescriptors, TestSignMessage, TestSignTx
 
-from hwilib.cli import process_commands
+from hwilib._cli import process_commands
 from hwilib.devices.keepkey import (
     KeepkeyClient,
     KeepkeyDebugLinkState,
@@ -186,7 +186,7 @@ class TestKeepkeyManCommands(KeepkeyTestCase):
         t_client.client.ui.get_pin = MethodType(get_pin, t_client.client.ui)
         t_client.client.ui.pin = '1234'
         result = t_client.setup_device()
-        self.assertTrue(result['success'])
+        self.assertTrue(result)
 
         # Make sure device is init, setup should fail
         result = self.do_command(self.dev_args + ['-i', 'setup'])
@@ -230,7 +230,7 @@ class TestKeepkeyManCommands(KeepkeyTestCase):
         self.assertEqual(result['code'], -7)
 
         result = self.do_command(self.dev_args + ['sendpin', '00000'])
-        self.assertFalse(result['success'])
+        self.assertFalse(result["success"])
 
         # Make sure we get a needs pin message
         result = self.do_command(self.dev_args + ['getxpub', 'm/0h'])

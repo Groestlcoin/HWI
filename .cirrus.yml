@@ -128,14 +128,29 @@ basic_test_task:
     - name: Type Check
       type_check_script: >
         poetry run
-        mypy --implicit-reexport --strict
-        hwilib/base58.py
-        hwilib/errors.py
-        hwilib/serializations.py
-        hwilib/hwwclient.py
-        hwilib/devices/bitbox02.py
-        hwilib/key.py
+        mypy
+        hwi.py
+        hwilib/_base58.py
+        hwilib/_bech32.py
+        hwilib/_cli.py
+        hwilib/commands.py
+        hwilib/common.py
         hwilib/descriptor.py
+        hwilib/devices/bitbox02.py
+        hwilib/devices/coldcard.py
+        hwilib/devices/digitalbitbox.py
+        hwilib/devices/__init__.py
+        hwilib/devices/keepkey.py
+        hwilib/devices/ledger.py
+        hwilib/devices/trezor.py
+        hwilib/errors.py
+        hwilib/_script.py
+        hwilib/_serialize.py
+        hwilib/tx.py
+        hwilib/hwwclient.py
+        hwilib/__init__.py
+        hwilib/key.py
+        hwilib/udevinstaller.py
     - name: Non-Device Tests
       test_script: cd test; poetry run ./run_tests.py; cd ..
 
