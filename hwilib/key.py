@@ -373,13 +373,13 @@ def get_bip44_purpose(addrtype: AddressType) -> int:
 
 def get_bip44_chain(chain: Chain) -> int:
     """
-    Determine the BIP 44 coin type based on the Bitcoin chain type.
+    Determine the BIP 44 coin type based on the Groestlcoin chain type.
 
-    For the Bitcoin mainnet chain, this returns 0. For the other chains, this returns 1.
+    For the Groestlcoin mainnet chain, this returns 17. For the other chains, this returns 1.
 
     :param chain: The chain
     """
     if chain == Chain.MAIN:
-        return 0
+        return 17
     else:
         return 1
