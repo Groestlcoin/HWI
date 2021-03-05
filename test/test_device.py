@@ -154,31 +154,31 @@ class TestDeviceConnect(DeviceTestCase):
         self.assertTrue(found)
 
     def test_no_type(self):
-        gmxp_res = self.do_command(['getmasterxpub'])
+        gmxp_res = self.do_command(['getmasterxpub', "--addr-type", "legacy"])
         self.assertIn('error', gmxp_res)
         self.assertEqual(gmxp_res['error'], 'You must specify a device type or fingerprint for all commands except enumerate')
         self.assertIn('code', gmxp_res)
         self.assertEqual(gmxp_res['code'], -1)
 
     def test_path_type(self):
-        gmxp_res = self.do_command(self.get_password_args() + ['-t', self.type, '-d', self.path, 'getmasterxpub'])
+        gmxp_res = self.do_command(self.get_password_args() + ['-t', self.type, '-d', self.path, 'getmasterxpub', "--addr-type", "legacy"])
         self.assertEqual(gmxp_res['xpub'], self.master_xpub)
 
     def test_fingerprint_autodetect(self):
-        gmxp_res = self.do_command(self.get_password_args() + ['-f', self.fingerprint, 'getmasterxpub'])
+        gmxp_res = self.do_command(self.get_password_args() + ['-f', self.fingerprint, 'getmasterxpub', "--addr-type", "legacy"])
         self.assertEqual(gmxp_res['xpub'], self.master_xpub)
 
         # Nonexistent fingerprint
-        gmxp_res = self.do_command(self.get_password_args() + ['-f', '0000ffff', 'getmasterxpub'])
+        gmxp_res = self.do_command(self.get_password_args() + ['-f', '0000ffff', 'getmasterxpub', "--addr-type", "legacy"])
         self.assertEqual(gmxp_res['error'], 'Could not find device with specified fingerprint')
         self.assertEqual(gmxp_res['code'], -3)
 
     def test_type_only_autodetect(self):
-        gmxp_res = self.do_command(self.get_password_args() + ['-t', self.type, 'getmasterxpub'])
+        gmxp_res = self.do_command(self.get_password_args() + ['-t', self.type, 'getmasterxpub', "--addr-type", "legacy"])
         self.assertEqual(gmxp_res['xpub'], self.master_xpub)
 
         # Unknown device type
-        gmxp_res = self.do_command(['-t', 'fakedev', '-d', 'fakepath', 'getmasterxpub'])
+        gmxp_res = self.do_command(['-t', 'fakedev', '-d', 'fakepath', 'getmasterxpub', "--addr-type", "legacy"])
         self.assertEqual(gmxp_res['error'], 'Unknown device type specified')
         self.assertEqual(gmxp_res['code'], -4)
 
@@ -188,7 +188,7 @@ class TestGetKeypool(DeviceTestCase):
         self.setup_wallets()
 
     def test_getkeypool(self):
-        pkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '0', '20'])
+        pkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "legacy", '0', '20'])
         import_result = self.wrpc.importdescriptors(pkh_keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -197,7 +197,7 @@ class TestGetKeypool(DeviceTestCase):
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('legacy'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/44'/1'/0'/1/"))
 
-        shwpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wpkh", '0', '20'])
+        shwpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wit", '0', '20'])
         import_result = self.wrpc.importdescriptors(shwpkh_keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -206,7 +206,7 @@ class TestGetKeypool(DeviceTestCase):
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('p2sh-segwit'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/0'/1/"))
 
-        wpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "wpkh", '0', '20'])
+        wpkh_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '0', '20'])
         import_result = self.wrpc.importdescriptors(wpkh_keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -219,7 +219,7 @@ class TestGetKeypool(DeviceTestCase):
         all_keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--all', '0', '20'])
         self.assertEqual(all_keypool_desc, pkh_keypool_desc + wpkh_keypool_desc + shwpkh_keypool_desc)
 
-        keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wpkh", '--account', '3', '0', '20'])
+        keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "sh_wit", '--account', '3', '0', '20'])
         import_result = self.wrpc.importdescriptors(keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -227,7 +227,7 @@ class TestGetKeypool(DeviceTestCase):
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/3'/0/"))
             addr_info = self.wrpc.getaddressinfo(self.wrpc.getrawchangeaddress('p2sh-segwit'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/49'/1'/3'/1/"))
-        keypool_desc = self.do_command(self.dev_args + ['getkeypool', "--addr-type", "wpkh", '--account', '3', '0', '20'])
+        keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--account', '3', '0', '20'])
         import_result = self.wrpc.importdescriptors(keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
@@ -240,7 +240,7 @@ class TestGetKeypool(DeviceTestCase):
         import_result = self.wrpc.importdescriptors(keypool_desc)
         self.assertTrue(import_result[0]['success'])
         for _ in range(0, 21):
-            addr_info = self.wrpc.getaddressinfo(self.wrpc.getnewaddress('', 'legacy'))
+            addr_info = self.wrpc.getaddressinfo(self.wrpc.getnewaddress('', 'bech32'))
             self.assertTrue(addr_info['hdkeypath'].startswith("m/0'/0'/4'/"))
 
         keypool_desc = self.do_command(self.dev_args + ['getkeypool', '--path', '/0h/0h/4h/*', '0', '20'])
@@ -471,17 +471,17 @@ class TestSignTx(DeviceTestCase):
 
 class TestDisplayAddress(DeviceTestCase):
     def test_display_address_path(self):
-        result = self.do_command(self.dev_args + ['displayaddress', '--path', 'm/44h/1h/0h/0/0'])
+        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "legacy", '--path', 'm/44h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
 
-        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "sh_wpkh", '--path', 'm/49h/1h/0h/0/0'])
+        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "sh_wit", '--path', 'm/49h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
 
-        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "wpkh", '--path', 'm/84h/1h/0h/0/0'])
+        result = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "wit", '--path', 'm/84h/1h/0h/0/0'])
         self.assertNotIn('error', result)
         self.assertNotIn('code', result)
         self.assertIn('address', result)
@@ -612,7 +612,7 @@ class TestSignMessage(DeviceTestCase):
         self.assertIn("signature", sign_res)
         sig = sign_res["signature"]
 
-        addr = self.do_command(self.dev_args + ['displayaddress', '--path', addr_path])["address"]
+        addr = self.do_command(self.dev_args + ['displayaddress', "--addr-type", "legacy", '--path', addr_path])["address"]
         addr = to_address(decode(addr)[1:-4], b"\x6F")
 
         self.assertTrue(self.rpc.verifymessage(addr, sig, msg))
