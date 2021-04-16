@@ -16,6 +16,7 @@ from typing import (
     Sequence,
     TypeVar,
 )
+import base64
 import builtins
 import sys
 from functools import wraps
@@ -285,17 +286,19 @@ class Bitbox02Client(HardwareWalletClient):
             return self.bb02
 
         for device_info in devices.get_any_bitbox02s():
-            if device_info["path"].decode() == self.device_path:
-                bb02 = bitbox02.BitBox02(
-                    transport=self.transport,
-                    device_info=device_info,
-                    noise_config=self.noise_config,
-                )
-                try:
-                    bb02.check_min_version()
-                except FirmwareVersionOutdatedException as exc:
-                    sys.stderr.write("WARNING: {}\n".format(exc))
-                    raise
+            if device_info["path"].decode() != self.device_path:
+                continue
+
+            bb02 = bitbox02.BitBox02(
+                transport=self.transport,
+                device_info=device_info,
+                noise_config=self.noise_config,
+            )
+            try:
+                bb02.check_min_version()
+            except FirmwareVersionOutdatedException as exc:
+                sys.stderr.write("WARNING: {}\n".format(exc))
+                raise
             self.bb02 = bb02
             is_initialized = bb02.device_info()["initialized"]
             if expect_initialized is not None:
@@ -782,10 +785,32 @@ class Bitbox02Client(HardwareWalletClient):
 
         return psbt
 
+    @bitbox02_exception
     def sign_message(
         self, message: Union[str, bytes], bip32_path: str
     ) -> str:
-        raise UnavailableActionError("The BitBox02 does not support 'signmessage'")
+        if isinstance(message, str):
+            message = message.encode("utf-8")
+        keypath = parse_path(bip32_path)
+        purpose = keypath[0]
+        simple_type = {
+            PURPOSE_P2WPKH: bitbox02.btc.BTCScriptConfig.P2WPKH,
+            PURPOSE_P2WPKH_P2SH: bitbox02.btc.BTCScriptConfig.P2WPKH_P2SH,
+        }.get(purpose)
+        if simple_type is None:
+            raise BitBox02Error(
+                "For message signing, the keypath bip44 purpose must be 84' or 49'"
+            )
+        _, _, sig65 = self.init().btc_sign_msg(
+            self._get_coin(),
+            bitbox02.btc.BTCScriptConfigWithKeypath(
+                script_config=bitbox02.btc.BTCScriptConfig(
+                    simple_type=simple_type,
+                ),
+                keypath=keypath,
+            ),
+            message)
+        return base64.b64encode(sig65).decode("ascii")
 
     @bitbox02_exception
     def toggle_passphrase(self) -> bool:
