@@ -87,6 +87,7 @@ import base64
 import getpass
 import logging
 import sys
+import groestlcoin_hash
 
 py_enumerate = enumerate # Need to use the enumerate built-in but there's another function already named that
 
@@ -138,7 +139,7 @@ def parse_multisig(script: bytes, tx_xpubs: Dict[bytes, KeyOriginInfo], psbt_sco
         if pub.node.public_key in psbt_scope.hd_keypaths:
             derivation = psbt_scope.hd_keypaths[pub.node.public_key]
             for xpub in tx_xpubs:
-                hd = ExtendedKey.deserialize(base58.encode(xpub + hash256(xpub)[:4]))
+                hd = ExtendedKey.deserialize(base58.encode(xpub + groestlcoin_hash.getHash(xpub, len(xpub))[:4]))
                 origin = tx_xpubs[xpub]
                 # check fingerprint and derivation
                 if (origin.fingerprint == derivation.fingerprint) and (origin.path == derivation.path[:len(origin.path)]):
