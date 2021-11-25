@@ -53,7 +53,7 @@ The table below lists what devices and features are supported for each device.
 +------------------------------------+---------------+---------------+------------+----------------+---------
 | Mixed Segwit and Non-Segwit Inputs | ―             | ―             | ✓          | ✓              | ✓
 +------------------------------------+---------------+---------------+------------+----------------+---------
-| Display on device screen           | ✓             | ✓             | ✓          | ✓              | ✓     
+| Display on device screen           | ✓             | ✓             | ✓          | ✓              | ✓
 +------------------------------------+---------------+---------------+------------+----------------+---------
 
 Support Policy
@@ -98,4 +98,6 @@ Device APIs
 .. automodule:: hwilib.devices.keepkey
    :members:
 .. automodule:: hwilib.devices.coldcard
+   :members:
+.. automodule:: hwilib.devices.jade
    :members:
