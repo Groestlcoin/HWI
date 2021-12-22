@@ -155,6 +155,14 @@ class KeepkeyClient(TrezorClient):
         if self.simulator:
             self.client.debug.map_type_to_class_override[KeepkeyDebugLinkState.MESSAGE_WIRE_TYPE] = KeepkeyDebugLinkState
 
+    def can_sign_taproot(self) -> bool:
+        """
+        The KeepKey does not support Taproot yet.
+
+        :returns: False, always
+        """
+        return False
+
 
     def _check_unlocked(self):
         self.coin_name = 'GRS Testnet' if self.is_testnet else 'Groestlcoin'
