@@ -438,7 +438,7 @@ class LedgerClient(HardwareWalletClient):
     @ledger_exception
     def can_sign_taproot(self) -> bool:
         """
-        Ledgers support Taproot if the Bitcoin App version greater than 2.0.0.
+        Ledgers support Taproot if the Groestlcoin App version greater than 2.0.0.
         However HWI does not implement Taproot support for the Ledger yet.
 
         :returns: False, always
