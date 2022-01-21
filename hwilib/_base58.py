@@ -13,14 +13,18 @@ Base 58 conversion utilities
 #
 
 from binascii import hexlify, unhexlify
+import groestlcoin_hash
 from typing import List
 
-from .common import groestl
+# from .common import hash256
 from .errors import BadArgumentError
 
 
 b58_digits: str = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
+
+def groestl(s: bytes) -> bytes:
+    return groestlcoin_hash.getHash(s, len(s))
 
 def encode(b: bytes) -> str:
     """
