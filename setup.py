@@ -19,7 +19,7 @@ install_requires = \
 ['bitbox02>=5.3.0,<6.0.0',
  'cbor>=1.0.0,<2.0.0',
  'ecdsa>=0,<1',
- 'groestlcoin_hash==1.0.1',
+ 'groestlcoin_hash==1.0.3',
  'hidapi>=0,<1',
  'libusb1>=1.7,<3',
  'mnemonic>=0,<1',
