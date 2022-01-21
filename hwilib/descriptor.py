@@ -3,7 +3,7 @@ Output Script Descriptors
 *************************
 
 HWI has a more limited implementation of descriptors.
-See `Bitcoin Core's documentation <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>`_ for more details on descriptors.
+See `Groestlcoin Core's documentation <https://github.com/Groestlcoin/groestlcoin/blob/master/doc/descriptors.md>`_ for more details on descriptors.
 
 This implementation only supports ``sh()``, ``wsh()``, ``pkh()``, ``wpkh()``, ``multi()``, and ``sortedmulti()`` descriptors.
 Descriptors can be parsed, however the actual scripts are not generated.
@@ -32,7 +32,7 @@ def PolyMod(c: int, val: int) -> int:
     """
     :meta private:
     Function to compute modulo over the polynomial used for descriptor checksums
-    From: https://github.com/bitcoin/bitcoin/blob/master/src/script/descriptor.cpp
+    From: https://github.com/Groestlcoin/groestlcoin/blob/master/src/script/descriptor.cpp
     """
     c0 = c >> 35
     c = ((c & 0x7ffffffff) << 5) ^ val

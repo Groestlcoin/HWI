@@ -528,7 +528,7 @@ class PSBT(object):
 
     def __init__(self, tx: Optional[CTransaction] = None) -> None:
         """
-        :param tx: A Bitcoin transaction that specifies the inputs and outputs to use
+        :param tx: A Groestlcoin transaction that specifies the inputs and outputs to use
         """
         if tx:
             self.tx = tx

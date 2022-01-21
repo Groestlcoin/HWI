@@ -1,5 +1,5 @@
 """
-Bitcoin Script utilities
+Groestlcoin Script utilities
 ************************
 """
 

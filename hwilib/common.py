@@ -14,10 +14,10 @@ class Chain(Enum):
     """
     The blockchain network to use
     """
-    MAIN = 0 #: Bitcoin Main network
-    TEST = 1 #: Bitcoin Test network
-    REGTEST = 2 #: Bitcoin Core Regression Test network
-    SIGNET = 3 #: Bitcoin Signet
+    MAIN = 0 #: Groestlcoin Main network
+    TEST = 1 #: Groestlcoin Test network
+    REGTEST = 2 #: Groestlcoin Core Regression Test network
+    SIGNET = 3 #: Groestlcoin Signet
 
     def __str__(self) -> str:
         return self.name.lower()

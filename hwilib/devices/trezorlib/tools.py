@@ -126,7 +126,7 @@ def b58encode(v: bytes) -> str:
         long_value = div
     result = __b58chars[long_value] + result
 
-    # Bitcoin does a little leading-zero-compression:
+    # Groestlcoin does a little leading-zero-compression:
     # leading 0-bytes in the input become leading-1s
     nPad = 0
     for c in v:
@@ -220,7 +220,7 @@ def parse_path(nstr: str) -> Address:
 def normalize_nfc(txt: AnyStr) -> bytes:
     """
     Normalize message to NFC and return bytes suitable for protobuf.
-    This seems to be bitcoin-qt standard of doing things.
+    This seems to be groestlcoin-qt standard of doing things.
     """
     str_txt = txt.decode() if isinstance(txt, bytes) else txt
     return unicodedata.normalize("NFC", str_txt).encode()
@@ -330,7 +330,7 @@ def dict_from_camelcase(d: Any, renames: Optional[dict] = None) -> dict:
     return res
 
 
-# adapted from https://github.com/bitcoin-core/HWI/blob/master/hwilib/descriptor.py
+# adapted from https://github.com/Groestlcoin/HWI/blob/master/hwilib/descriptor.py
 
 
 def descriptor_checksum(desc: str) -> str:

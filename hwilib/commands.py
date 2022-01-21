@@ -214,7 +214,7 @@ def signmessage(client: HardwareWalletClient, message: str, path: str) -> Dict[s
     """
     Sign a message using the key at the derivation path with the client.
 
-    The message will be signed using the Bitcoin signed message standard used by Bitcoin Core.
+    The message will be signed using the Groestlcoin signed message standard used by Groestlcoin Core.
     The message can be either a string which is then encoded to bytes, or bytes.
 
     :param client: The client to interact with
@@ -360,7 +360,7 @@ def getkeypool(
     addr_all: bool = False
 ) -> List[Dict[str, Any]]:
     """
-    Get a dictionary which can be passed to Bitcoin Core's ``importmulti`` or ``importdescriptors`` RPCs to import a watchonly wallet based on the client.
+    Get a dictionary which can be passed to Groestlcoin Core's ``importmulti`` or ``importdescriptors`` RPCs to import a watchonly wallet based on the client.
     By default, a descriptor for legacy addresses is returned.
 
     :param client: The client to interact with
@@ -368,7 +368,7 @@ def getkeypool(
     :param start: The start of the range to import, inclusive
     :param end: The end of the range to import, inclusive
     :param internal: Whether the dictionary should indicate that the descriptor should be for change addresses
-    :param keypool: Whether the dictionary should indicate that the dsecriptor should be added to the Bitcoin Core keypool/addresspool
+    :param keypool: Whether the dictionary should indicate that the dsecriptor should be added to the Groestlcoin Core keypool/addresspool
     :param account: The BIP 44 account to use if ``path`` is not specified
     :param addr_type: The address type
     :param addr_all: Whether to return a multiple descriptors for every address type

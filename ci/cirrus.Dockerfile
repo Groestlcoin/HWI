@@ -8,7 +8,7 @@ RUN apt-get install -y \
     bsdmainutils \
     build-essential \
     ccache \
-    clang \    
+    clang \
     cmake \
     curl \
     cython3 \
@@ -71,7 +71,7 @@ ENV PATH="/root/.cargo/bin:$PATH"
 #RUN cd test; ./setup_environment.sh --ledger
 #RUN cd test; ./setup_environment.sh --keepkey
 #RUN cd test; ./setup_environment.sh --jade
-#RUN cd test; ./setup_environment.sh --bitcoind
+#RUN cd test; ./setup_environment.sh --groestlcoind
 #
 ## Once everything has been built, put rest of files in place
 ## which have higher turn-over.

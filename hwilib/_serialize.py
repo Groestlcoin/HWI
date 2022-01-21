@@ -5,11 +5,11 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """
-Bitcoin Object Python Serializations
+Groestlcoin Object Python Serializations
 ************************************
 
 Modified from the test/test_framework/mininode.py file from the
-Bitcoin repository
+Groestlcoin repository
 """
 
 import struct
@@ -38,7 +38,7 @@ class Serializable(Protocol):
 # Serialization/deserialization tools
 def ser_compact_size(size: int) -> bytes:
     """
-    Serialize an integer using Bitcoin's compact size unsigned integer serialization.
+    Serialize an integer using Groestlcoin's compact size unsigned integer serialization.
 
     :param size: The int to serialize
     :returns: The int serialized as a compact size unsigned integer
@@ -72,7 +72,7 @@ def deser_compact_size(f: Readable) -> int:
 
 def deser_string(f: Readable) -> bytes:
     """
-    Deserialize a variable length byte string serialized with Bitcoin's variable length string serialization from a byte stream.
+    Deserialize a variable length byte string serialized with Groestlcoin's variable length string serialization from a byte stream.
 
     :param f: The byte stream
     :returns: The byte string that was serialized
@@ -82,7 +82,7 @@ def deser_string(f: Readable) -> bytes:
 
 def ser_string(s: bytes) -> bytes:
     """
-    Serialize a byte string with Bitcoin's variable length string serialization.
+    Serialize a byte string with Groestlcoin's variable length string serialization.
 
     :param s: The byte string to be serialized
     :returns: The serialized byte string
@@ -91,7 +91,7 @@ def ser_string(s: bytes) -> bytes:
 
 def deser_uint256(f: Readable) -> int:
     """
-    Deserialize a 256 bit integer serialized with Bitcoin's 256 bit integer serialization from a byte stream.
+    Deserialize a 256 bit integer serialized with Groestlcoin's 256 bit integer serialization from a byte stream.
 
     :param f: The byte stream.
     :returns: The integer that was serialized
@@ -105,7 +105,7 @@ def deser_uint256(f: Readable) -> int:
 
 def ser_uint256(u: int) -> bytes:
     """
-    Serialize a 256 bit integer with Bitcoin's 256 bit integer serialization.
+    Serialize a 256 bit integer with Groestlcoin's 256 bit integer serialization.
 
     :param u: The integer to serialize
     :returns: The serialized 256 bit integer
@@ -119,7 +119,7 @@ def ser_uint256(u: int) -> bytes:
 
 def uint256_from_str(s: bytes) -> int:
     """
-    Deserialize a 256 bit integer serialized with Bitcoin's 256 bit integer serialization from a byte string.
+    Deserialize a 256 bit integer serialized with Groestlcoin's 256 bit integer serialization from a byte string.
 
     :param s: The byte string
     :returns: The integer that was serialized
@@ -134,7 +134,7 @@ D = TypeVar("D", bound=Deserializable)
 
 def deser_vector(f: Readable, c: Callable[[], D]) -> List[D]:
     """
-    Deserialize a vector of objects with Bitcoin's object vector serialization from a byte stream.
+    Deserialize a vector of objects with Groestlcoin's object vector serialization from a byte stream.
 
     :param f: The byte stream
     :param c: The class of object to deserialize for each object in the vector
@@ -151,7 +151,7 @@ def deser_vector(f: Readable, c: Callable[[], D]) -> List[D]:
 
 def ser_vector(v: Sequence[Serializable]) -> bytes:
     """
-    Serialize a vector of objects with Bitcoin's object vector serialzation.
+    Serialize a vector of objects with Groestlcoin's object vector serialzation.
 
     :param v: The list of objects to serialize
     :returns: The serialized objects
