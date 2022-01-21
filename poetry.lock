@@ -189,7 +189,7 @@ description = "Groestlcoin hash algorithm."
 name = "groestlcoin-hash"
 optional = false
 python-versions = "*"
-version = "1.0.1"
+version = "1.0.3"
 
 [[package]]
 name = "hidapi"
@@ -850,7 +850,7 @@ groestlcoin-hash = [
     {file = "groestlcoin_hash-1.0.3-cp37-cp37m-win32.whl", hash = "sha256:74b490ea1110e8baa0f32c13890c17bd8b9b6973abb0c5f8a7dd7da3a69266de"},
     {file = "groestlcoin_hash-1.0.3-cp37-cp37m-win_amd64.whl", hash = "sha256:38ac75c102fedfdc4977e7ec3092598a7e5ca1110b477c8519b315ec7219434e"},
     {file = "groestlcoin_hash-1.0.3-cp38-cp38-win32.whl", hash = "sha256:92b79dc9d0a8763d67b7da71369c5832785b55c5b5c3778ef4e7addf7d750ea8"},
-    {file = "groestlcoin_hash-1.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:4959d812cae8912a1953dd36ad2ca615b3ba3ef06eeae82045918c4ffc69800b"},  
+    {file = "groestlcoin_hash-1.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:4959d812cae8912a1953dd36ad2ca615b3ba3ef06eeae82045918c4ffc69800b"},
     {file = "groestlcoin_hash-1.0.3-cp39-cp39m-win32.whl", hash = "sha256:6eecbe60e23609ade5715ff2a5bc8ecd18060831dd9fd0ed56cd280d3245d512"},
     {file = "groestlcoin_hash-1.0.3-cp39-cp39m-win_amd64.whl", hash = "sha256:a27190a368f0ba4e018089b58a81e889280208ee277935ce894b796eec7b9286"},
     {file = "groestlcoin_hash-1.0.3-cp310-cp310-win32.whl", hash = "sha256:6b92ab7e2d86b476c3e9e6a2c450d37b41700e0ab3ac3099f2c134b8e659ae48"},
