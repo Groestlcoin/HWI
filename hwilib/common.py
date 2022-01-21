@@ -4,6 +4,7 @@ Common Classes and Utilities
 """
 
 import hashlib
+import groestlcoin_hash
 
 from enum import Enum
 
