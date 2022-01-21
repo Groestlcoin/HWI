@@ -14,7 +14,7 @@ from . import _base58 as base58
 from .common import (
     AddressType,
     Chain,
-    hash256,
+    # hash256,
     hash160,
 )
 from .errors import BadArgumentError

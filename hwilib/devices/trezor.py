@@ -77,7 +77,7 @@ from .._serialize import (
 from ..common import (
     AddressType,
     Chain,
-    hash256,
+    # hash256,
 )
 from .. import _bech32 as bech32
 from mnemonic import Mnemonic
@@ -715,7 +715,7 @@ class TrezorClient(HardwareWalletClient):
 
     @trezor_exception
     def prompt_pin(self) -> bool:
-        self.coin_name = 'Groestlcoincoin' if self.chain == Chain.MAIN else 'Groestlcoin Testnet'
+        self.coin_name = 'Groestlcoin' if self.chain == Chain.MAIN else 'Groestlcoin Testnet'
         self.client.open()
         self._prepare_device()
         if not self.client.features.pin_protection:

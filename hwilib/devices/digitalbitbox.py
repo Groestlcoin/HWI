@@ -29,7 +29,7 @@ from typing import (
 from ..common import (
     AddressType,
     Chain,
-    hash256,
+    # hash256,
 )
 from ..descriptor import MultisigDescriptor
 from ..hwwclient import HardwareWalletClient

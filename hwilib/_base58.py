@@ -16,7 +16,7 @@ from binascii import hexlify, unhexlify
 import groestlcoin_hash
 from typing import List
 
-from .common import hash256
+# from .common import hash256
 from .errors import BadArgumentError
 
 
