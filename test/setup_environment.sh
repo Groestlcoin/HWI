@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
         --groestlcoind)
-        build_bitcoind=1
+        build_groestlcoind=1
         shift
         ;;
         --all)
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
         build_ledger=1
         build_keepkey=1
         build_jade=1
-        build_bitcoind=1
+        build_groestlcoind=1
         shift
         ;;
     esac
@@ -359,13 +359,13 @@ if [[ -n ${build_jade} ]]; then
     cd ..
 fi
 
-if [[ -n ${build_bitcoind} ]]; then
+if [[ -n ${build_groestlcoind} ]]; then
     # Clone groestlcoind if it doesn't exist, or update it if it does
-    bitcoind_setup_needed=false
+    groestlcoind_setup_needed=false
     if [ ! -d "groestlcoin" ]; then
         git clone https://github.com/groestlcoin/groestlcoin.git
         cd groestlcoin
-        bitcoind_setup_needed=true
+        groestlcoind_setup_needed=true
     else
         cd groestlcoin
         git fetch
@@ -380,7 +380,7 @@ if [[ -n ${build_bitcoind} ]]; then
             echo "Up-to-date"
         elif [ $LOCAL = $BASE ]; then
             git pull
-            bitcoind_setup_needed=true
+            groestlcoind_setup_needed=true
         fi
     fi
 
