@@ -96,3 +96,14 @@ def hash160(s: bytes) -> bytes:
     :return: The hash
     """
     return ripemd160(sha256(s))
+
+def groestl(s: bytes) -> bytes:
+    """
+    Perform a double GROESTL512 hash.
+    A GROESTL512 is performed on the input, and then a second
+    GROESTL512 is performed on the result of the first GROESTL512 then truncated.
+
+    :param s: Bytes to hash
+    :return: The hash
+    """
+    return groestlcoin_hash.getHash(s, len(s))
