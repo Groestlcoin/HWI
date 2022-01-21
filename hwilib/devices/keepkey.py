@@ -4,12 +4,13 @@ Keepkey
 """
 
 from ..errors import (
+    DeviceAlreadyUnlockedError,
     DEVICE_NOT_INITIALIZED,
     DeviceNotReadyError,
     common_err_msgs,
     handle_errors,
 )
-from .trezorlib import protobuf
+from .trezorlib import protobuf, messages
 from .trezorlib.transport import (
     hid,
     udp,
@@ -31,7 +32,18 @@ from typing import (
     Optional,
 )
 
+from ..common import Chain
+
+import sys
+
 py_enumerate = enumerate # Need to use the enumerate built-in but there's another function already named that
+
+PIN_MATRIX_DESCRIPTION = """
+Use the numeric keypad to describe number positions. The layout is:
+    7 8 9
+    4 5 6
+    1 2 3
+""".strip()
 
 KEEPKEY_HID_IDS = {(0x2B24, 0x0001)}
 KEEPKEY_WEBUSB_IDS = {(0x2B24, 0x0002)}
