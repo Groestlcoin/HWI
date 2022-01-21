@@ -161,6 +161,26 @@ class KeepkeyClient(TrezorClient):
         super(KeepkeyClient, self).__init__(path, password, expert, KEEPKEY_HID_IDS, KEEPKEY_WEBUSB_IDS, KEEPKEY_SIMULATOR_PATH, model)
         self.type = 'Keepkey'
 
+    def _prepare_device(self) -> None:
+        self.coin_name = 'Groestlcoin' if self.chain == Chain.MAIN else 'GRS Testnet'
+        resp = self.client.refresh_features()
+        # If this is a Keepkey, do Initialize
+        if resp.model == 'K1-14AM':
+            self.client.init_device()
+
+    def prompt_pin(self) -> bool:
+        self.coin_name = 'Groestlcoin' if self.chain == Chain.MAIN else 'GRS Testnet'
+        self.client.open()
+        self._prepare_device()
+        if not self.client.features.pin_protection:
+            raise DeviceAlreadyUnlockedError('This device does not need a PIN')
+        if self.client.features.unlocked:
+            raise DeviceAlreadyUnlockedError('The PIN has already been sent to this device')
+        print('Use \'sendpin\' to provide the number positions for the PIN as displayed on your device\'s screen', file=sys.stderr)
+        print(PIN_MATRIX_DESCRIPTION, file=sys.stderr)
+        self.client.call_raw(messages.GetPublicKey(address_n=[0x8000002c, 0x80000001, 0x80000000], ecdsa_curve_name=None, show_display=False, coin_name=self.coin_name, script_type=messages.InputScriptType.SPENDADDRESS))
+        return True
+
     def can_sign_taproot(self) -> bool:
         """
         The KeepKey does not support Taproot yet.
