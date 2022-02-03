@@ -3213,8 +3213,8 @@ index d328290cbc..e6c11d6822 100644
 +        ExtractDestination(*out.script, address);
 +        totalAmount += *out.amount;
          tx_description.append(tr(" * Sends %1 to %2")
--            .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, out.nValue))
-+            .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, *out.amount))
+-            .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::GRS, out.nValue))
++            .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::GRS, *out.amount))
              .arg(QString::fromStdString(EncodeDestination(address))));
          tx_description.append("<br>");
      }
