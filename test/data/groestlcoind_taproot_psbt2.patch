@@ -21,7 +21,7 @@ index f0ceb02481..e2dbf48679 100644
 @@ -98,22 +98,30 @@ void UnserializeFromVector(Stream& s, X&... args)
      }
  }
- 
+
 -// Deserialize an individual HD keypath to a stream
 +// Deserialize bytes of given length from the stream as a KeyOriginInfo
  template<typename Stream>
@@ -34,7 +34,7 @@ index f0ceb02481..e2dbf48679 100644
 +    if (length % 4 || length == 0) {
          throw std::ios_base::failure("Invalid length for HD key path");
      }
- 
+
 +    KeyOriginInfo hd_keypath;
      s >> hd_keypath.fingerprint;
 -    for (unsigned int i = 4; i < value_len; i += sizeof(uint32_t)) {
@@ -52,12 +52,12 @@ index f0ceb02481..e2dbf48679 100644
 +{
 +    hd_keypath = DeserializeKeyOrigin(s, ReadCompactSize(s));
  }
- 
+
  // Deserialize HD keypaths into a map
 @@ -140,17 +148,24 @@ void DeserializeHDKeypaths(Stream& s, const std::vector<unsigned char>& key, std
      hd_keypaths.emplace(pubkey, std::move(keypath));
  }
- 
+
 -// Serialize an individual HD keypath to a stream
 +// Serialize a KeyOriginInfo to a stream
  template<typename Stream>
@@ -70,7 +70,7 @@ index f0ceb02481..e2dbf48679 100644
          s << path;
      }
  }
- 
+
 +// Serialize a length prefixed KeyOriginInfo to a stream
 +template<typename Stream>
 +void SerializeHDKeypath(Stream& s, KeyOriginInfo hd_keypath)
@@ -82,7 +82,7 @@ index f0ceb02481..e2dbf48679 100644
  // Serialize HD keypaths to a stream from a map
  template<typename Stream>
  void SerializeHDKeypaths(Stream& s, const std::map<CPubKey, KeyOriginInfo>& hd_keypaths, CompactSizeWriter type)
--- 
+--
 2.35.1
 
 
@@ -104,7 +104,7 @@ index 5fb98cc307..1e8d892e00 100644
 --- a/src/script/standard.cpp
 +++ b/src/script/standard.cpp
 @@ -621,3 +621,18 @@ std::optional<std::vector<std::tuple<int, CScript, int>>> InferTaprootTree(const
- 
+
      return ret;
  }
 +
@@ -133,9 +133,9 @@ index eb50421768..6e0dbca61c 100644
 +    /** Returns a vector of tuples representing the depth, leaf version, and script */
 +    std::vector<std::tuple<uint8_t, uint8_t, CScript>> GetTreeTuples() const;
  };
- 
+
  /** Given a TaprootSpendData and the output key, reconstruct its script tree.
--- 
+--
 2.35.1
 
 
@@ -154,7 +154,7 @@ index 6e0dbca61c..3836f7efd8 100644
 --- a/src/script/standard.h
 +++ b/src/script/standard.h
 @@ -304,6 +304,8 @@ public:
- 
+
      /** Return true if so far all input was valid. */
      bool IsValid() const { return m_valid; }
 +    /** Return true if there are no leaves */
@@ -162,7 +162,7 @@ index 6e0dbca61c..3836f7efd8 100644
      /** Return whether there were either no leaves, or the leaves form a Huffman tree. */
      bool IsComplete() const { return m_valid && (m_branch.size() == 0 || (m_branch.size() == 1 && m_branch[0].has_value())); }
      /** Compute scriptPubKey (after Finalize()). */
--- 
+--
 2.35.1
 
 
@@ -190,9 +190,9 @@ index dfe06f834c..463efe1b00 100644
 +    //! Implement serialization without length prefixes since it is a fixed length
 +    SERIALIZE_METHODS(XOnlyPubKey, obj) { READWRITE(obj.m_keydata); }
  };
- 
+
  struct CExtPubKey {
--- 
+--
 2.35.1
 
 
@@ -220,7 +220,7 @@ index e2dbf48679..740db5fa1e 100644
 +static constexpr uint8_t PSBT_IN_TAP_INTERNAL_KEY = 0x17;
 +static constexpr uint8_t PSBT_IN_TAP_MERKLE_ROOT = 0x18;
  static constexpr uint8_t PSBT_IN_PROPRIETARY = 0xFC;
- 
+
  // Output types
  static constexpr uint8_t PSBT_OUT_REDEEMSCRIPT = 0x00;
  static constexpr uint8_t PSBT_OUT_WITNESSSCRIPT = 0x01;
@@ -229,7 +229,7 @@ index e2dbf48679..740db5fa1e 100644
 +static constexpr uint8_t PSBT_OUT_TAP_TREE = 0x06;
 +static constexpr uint8_t PSBT_OUT_TAP_BIP32_DERIVATION = 0x07;
  static constexpr uint8_t PSBT_OUT_PROPRIETARY = 0xFC;
- 
+
  // The separator is 0x00. Reading this in means that the unserializer can interpret it
 @@ -194,6 +203,15 @@ struct PSBTInput
      std::map<uint256, std::vector<unsigned char>> sha256_preimages;
@@ -299,7 +299,7 @@ index e2dbf48679..740db5fa1e 100644
 +                SerializeToVector(s, m_tap_merkle_root);
 +            }
          }
- 
+
          // Write script sig
 @@ -504,6 +569,101 @@ struct PSBTInput
                      hash256_preimages.emplace(hash, std::move(preimage));
@@ -412,11 +412,11 @@ index e2dbf48679..740db5fa1e 100644
 +    std::map<XOnlyPubKey, std::pair<std::set<uint256>, KeyOriginInfo>> m_tap_bip32_paths;
      std::map<std::vector<unsigned char>, std::vector<unsigned char>> unknown;
      std::set<PSBTProprietary> m_proprietary;
- 
+
 @@ -580,6 +743,40 @@ struct PSBTOutput
              s << entry.value;
          }
- 
+
 +        // Write taproot internal key
 +        if (!m_tap_internal_key.IsNull()) {
 +            SerializeToVector(s, PSBT_OUT_TAP_INTERNAL_KEY);
@@ -510,7 +510,7 @@ index e2dbf48679..740db5fa1e 100644
                  case PSBT_OUT_PROPRIETARY:
                  {
                      PSBTProprietary this_prop;
--- 
+--
 2.35.1
 
 
@@ -551,7 +551,7 @@ index c8c73e130b..6bc3d08b0d 100644
 +        sigdata.taproot_misc_pubkeys.emplace(pubkey, leaf_origin);
 +    }
  }
- 
+
  void PSBTInput::FromSignatureData(const SignatureData& sigdata)
 @@ -142,6 +160,24 @@ void PSBTInput::FromSignatureData(const SignatureData& sigdata)
      for (const auto& entry : sigdata.misc_pubkeys) {
@@ -576,7 +576,7 @@ index c8c73e130b..6bc3d08b0d 100644
 +        m_tap_bip32_paths.emplace(pubkey, leaf_origin);
 +    }
  }
- 
+
  void PSBTInput::Merge(const PSBTInput& input)
 diff --git a/src/script/sign.h b/src/script/sign.h
 index 7301826ba5..f195a9128b 100644
@@ -590,7 +590,7 @@ index 7301826ba5..f195a9128b 100644
      std::vector<CKeyID> missing_pubkeys; ///< KeyIDs of pubkeys which could not be found
      std::vector<CKeyID> missing_sigs; ///< KeyIDs of pubkeys for signatures which could not be found
      uint160 missing_redeem_script; ///< ScriptID of the missing redeemScript (if any)
--- 
+--
 2.35.1
 
 
@@ -626,7 +626,7 @@ index 371a937bc8..a12d97d4f4 100644
          if (CreateTaprootScriptSig(creator, sigdata, provider, sig, pubkey, leaf_hash, sigversion)) {
              result = Vector(std::move(sig));
 @@ -190,6 +201,14 @@ static bool SignTaproot(const SigningProvider& provider, const BaseSignatureCrea
- 
+
      // Try key path spending.
      {
 +        KeyOriginInfo info;
@@ -640,7 +640,7 @@ index 371a937bc8..a12d97d4f4 100644
          std::vector<unsigned char> sig;
          if (sigdata.taproot_key_path_sig.size() == 0) {
              if (creator.CreateSchnorrSig(provider, sig, spenddata.internal_key, nullptr, &spenddata.merkle_root, SigVersion::TAPROOT)) {
--- 
+--
 2.35.1
 
 
@@ -685,7 +685,7 @@ index 552934e0eb..c624a17628 100644
 +{
 +    return m_provider->GetTaprootBuilder(output_key, builder);
 +}
- 
+
  bool FlatSigningProvider::GetCScript(const CScriptID& scriptid, CScript& script) const { return LookupHelper(scripts, scriptid, script); }
  bool FlatSigningProvider::GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const { return LookupHelper(pubkeys, keyid, pubkey); }
 @@ -61,7 +65,16 @@ bool FlatSigningProvider::GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info)
@@ -704,7 +704,7 @@ index 552934e0eb..c624a17628 100644
 +{
 +    return LookupHelper(tr_trees, output_key, builder);
  }
- 
+
  FlatSigningProvider Merge(const FlatSigningProvider& a, const FlatSigningProvider& b)
 @@ -75,10 +88,8 @@ FlatSigningProvider Merge(const FlatSigningProvider& a, const FlatSigningProvide
      ret.keys.insert(b.keys.begin(), b.keys.end());
@@ -718,7 +718,7 @@ index 552934e0eb..c624a17628 100644
 +    ret.tr_trees.insert(b.tr_trees.begin(), b.tr_trees.end());
      return ret;
  }
- 
+
 diff --git a/src/script/signingprovider.h b/src/script/signingprovider.h
 index f1bded1a8c..792cc903f2 100644
 --- a/src/script/signingprovider.h
@@ -728,7 +728,7 @@ index f1bded1a8c..792cc903f2 100644
      virtual bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const { return false; }
      virtual bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const { return false; }
 +    virtual bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const { return false; }
- 
+
      bool GetKeyByXOnly(const XOnlyPubKey& pubkey, CKey& key) const
      {
 @@ -67,6 +68,7 @@ public:
@@ -737,7 +737,7 @@ index f1bded1a8c..792cc903f2 100644
      bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const override;
 +    bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const override;
  };
- 
+
  struct FlatSigningProvider final : public SigningProvider
 @@ -75,13 +77,14 @@ struct FlatSigningProvider final : public SigningProvider
      std::map<CKeyID, CPubKey> pubkeys;
@@ -745,7 +745,7 @@ index f1bded1a8c..792cc903f2 100644
      std::map<CKeyID, CKey> keys;
 -    std::map<XOnlyPubKey, TaprootSpendData> tr_spenddata; /** Map from output key to spend data. */
 +    std::map<XOnlyPubKey, TaprootBuilder> tr_trees; /** Map from output key to Taproot tree (which can then make the TaprootSpendData */
- 
+
      bool GetCScript(const CScriptID& scriptid, CScript& script) const override;
      bool GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const override;
      bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override;
@@ -753,9 +753,9 @@ index f1bded1a8c..792cc903f2 100644
      bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const override;
 +    bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const override;
  };
- 
+
  FlatSigningProvider Merge(const FlatSigningProvider& a, const FlatSigningProvider& b);
--- 
+--
 2.35.1
 
 
@@ -789,7 +789,7 @@ index 6bc3d08b0d..fc89f1c376 100644
 +        sigdata.taproot_misc_pubkeys.emplace(pubkey, leaf_origin);
 +    }
  }
- 
+
  void PSBTOutput::FromSignatureData(const SignatureData& sigdata)
 @@ -226,6 +236,15 @@ void PSBTOutput::FromSignatureData(const SignatureData& sigdata)
      for (const auto& entry : sigdata.misc_pubkeys) {
@@ -805,7 +805,7 @@ index 6bc3d08b0d..fc89f1c376 100644
 +        m_tap_bip32_paths.emplace(pubkey, leaf_origin);
 +    }
  }
- 
+
  bool PSBTOutput::IsNull() const
 diff --git a/src/script/sign.cpp b/src/script/sign.cpp
 index a12d97d4f4..7c40fd4dde 100644
@@ -816,7 +816,7 @@ index a12d97d4f4..7c40fd4dde 100644
  {
      TaprootSpendData spenddata;
 +    TaprootBuilder builder;
- 
+
      // Gather information about this output.
      if (provider.GetTaprootSpendData(output, spenddata)) {
          sigdata.tr_spenddata.Merge(spenddata);
@@ -824,7 +824,7 @@ index a12d97d4f4..7c40fd4dde 100644
 +    if (provider.GetTaprootBuilder(output, builder)) {
 +        sigdata.tr_builder = builder;
 +    }
- 
+
      // Try key path spending.
      {
 diff --git a/src/script/sign.h b/src/script/sign.h
@@ -839,7 +839,7 @@ index f195a9128b..663f343a66 100644
      std::map<CKeyID, SigPair> signatures; ///< BIP 174 style partial signatures for the input. May contain all signatures necessary for producing a final scriptSig or scriptWitness.
      std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>> misc_pubkeys;
      std::vector<unsigned char> taproot_key_path_sig; /// Schnorr signature for key path spending
--- 
+--
 2.35.1
 
 
@@ -935,7 +935,7 @@ index ff0d8a4e0f..b5189eb684 100644
 @@ -1442,6 +1502,72 @@ static RPCHelpMan decodepsbt()
              in.pushKV("hash256_preimages", hash256_preimages);
          }
- 
+
 +        // Taproot key path signature
 +        if (!input.m_tap_key_sig.empty()) {
 +            in.pushKV("taproot_key_path_sig", HexStr(input.m_tap_key_sig));
@@ -1008,7 +1008,7 @@ index ff0d8a4e0f..b5189eb684 100644
 @@ -1500,6 +1626,47 @@ static RPCHelpMan decodepsbt()
              out.pushKV("bip32_derivs", keypaths);
          }
- 
+
 +        // Taproot internal key
 +        if (!output.m_tap_internal_key.IsNull()) {
 +            out.pushKV("taproot_internal_key", HexStr(output.m_tap_internal_key));
@@ -1053,7 +1053,7 @@ index ff0d8a4e0f..b5189eb684 100644
          // Proprietary
          if (!output.m_proprietary.empty()) {
              UniValue proprietary(UniValue::VARR);
--- 
+--
 2.35.1
 
 
@@ -1079,10 +1079,10 @@ index fc89f1c376..ec691c24b9 100644
 -        // TODO: For segwit v1, we will want to clear out the non-witness utxo when setting a witness one. For v0 and non-segwit, this is not safe
          witness_utxo = input.witness_utxo;
      }
- 
+
 @@ -368,10 +367,11 @@ bool SignPSBTInput(const SigningProvider& provider, PartiallySignedTransaction&
      input.FromSignatureData(sigdata);
- 
+
      // If we have a witness signature, put a witness UTXO.
 -    // TODO: For segwit v1, we should remove the non_witness_utxo
      if (sigdata.witness) {
@@ -1092,7 +1092,7 @@ index fc89f1c376..ec691c24b9 100644
 +        // inputs in this transaction. Since this requires inspecting the entire transaction, this
 +        // is something for the caller to deal with (i.e. FillPSBT).
      }
- 
+
      // Fill in the missing info
 diff --git a/src/wallet/wallet.cpp b/src/wallet/wallet.cpp
 index 84962af906..ae069ca9fc 100644
@@ -1101,7 +1101,7 @@ index 84962af906..ae069ca9fc 100644
 @@ -1989,6 +1989,35 @@ TransactionError CWallet::FillPSBT(PartiallySignedTransaction& psbtx, bool& comp
          }
      }
- 
+
 +    // Only drop non_witness_utxos if sighash_type != SIGHASH_ANYONECANPAY
 +    if ((sighash_type & 0x80) != SIGHASH_ANYONECANPAY) {
 +        // Figure out if any non_witness_utxos should be dropped
@@ -1134,7 +1134,7 @@ index 84962af906..ae069ca9fc 100644
      // Complete if every input is now signed
      complete = true;
      for (const auto& input : psbtx.inputs) {
--- 
+--
 2.35.1
 
 
@@ -1186,7 +1186,7 @@ index 8672400a92..430a1802a8 100644
      ],
      "creator" : [
          {
--- 
+--
 2.35.1
 
 
@@ -1220,7 +1220,7 @@ index 17eab25457..2a2a99414e 100755
 +++ b/test/functional/wallet_taproot.py
 @@ -416,8 +416,7 @@ class WalletTaprootTest(BitcoinTestFramework):
          assert(self.rpc_online.gettransaction(txid)["confirmations"] > 0)
- 
+
          psbt = self.psbt_online.walletcreatefundedpsbt([], [{self.boring.getnewaddress(): self.psbt_online.getbalance()}], None, {"subtractFeeFromOutputs": [0]})['psbt']
 -        res = self.psbt_offline.walletprocesspsbt(psbt)
 -        assert(res['complete'])
@@ -1228,7 +1228,7 @@ index 17eab25457..2a2a99414e 100755
          rawtx = self.nodes[0].finalizepsbt(res['psbt'])['hex']
          txid = self.nodes[0].sendrawtransaction(rawtx)
          self.generatetoaddress(self.nodes[0], 1, self.boring.getnewaddress(), sync_fun=self.no_op)
--- 
+--
 2.35.1
 
 
@@ -1269,7 +1269,7 @@ index 2a2a99414e..cb5443172f 100755
              rawtx = self.nodes[0].finalizepsbt(res['psbt'])['hex']
              txid = self.nodes[0].sendrawtransaction(rawtx)
              self.generatetoaddress(self.nodes[0], 1, self.boring.getnewaddress(), sync_fun=self.no_op)
--- 
+--
 2.35.1
 
 
@@ -1293,7 +1293,7 @@ index ec691c24b9..891ed4c99d 100644
 +    m_tap_script_sigs.insert(input.m_tap_script_sigs.begin(), input.m_tap_script_sigs.end());
 +    m_tap_scripts.insert(input.m_tap_scripts.begin(), input.m_tap_scripts.end());
 +    m_tap_bip32_paths.insert(input.m_tap_bip32_paths.begin(), input.m_tap_bip32_paths.end());
- 
+
      if (redeem_script.empty() && !input.redeem_script.empty()) redeem_script = input.redeem_script;
      if (witness_script.empty() && !input.witness_script.empty()) witness_script = input.witness_script;
      if (final_script_sig.empty() && !input.final_script_sig.empty()) final_script_sig = input.final_script_sig;
@@ -1302,14 +1302,14 @@ index ec691c24b9..891ed4c99d 100644
 +    if (m_tap_internal_key.IsNull() && !input.m_tap_internal_key.IsNull()) m_tap_internal_key = input.m_tap_internal_key;
 +    if (m_tap_merkle_root.IsNull() && !input.m_tap_merkle_root.IsNull()) m_tap_merkle_root = input.m_tap_merkle_root;
  }
- 
+
  void PSBTOutput::FillSignatureData(SignatureData& sigdata) const
 @@ -255,9 +261,12 @@ void PSBTOutput::Merge(const PSBTOutput& output)
  {
      hd_keypaths.insert(output.hd_keypaths.begin(), output.hd_keypaths.end());
      unknown.insert(output.unknown.begin(), output.unknown.end());
 +    m_tap_bip32_paths.insert(output.m_tap_bip32_paths.begin(), output.m_tap_bip32_paths.end());
- 
+
      if (redeem_script.empty() && !output.redeem_script.empty()) redeem_script = output.redeem_script;
      if (witness_script.empty() && !output.witness_script.empty()) witness_script = output.witness_script;
 +    if (m_tap_internal_key.IsNull() && !output.m_tap_internal_key.IsNull()) m_tap_internal_key = output.m_tap_internal_key;
@@ -1317,7 +1317,7 @@ index ec691c24b9..891ed4c99d 100644
  }
  bool PSBTInputSigned(const PSBTInput& input)
  {
--- 
+--
 2.35.1
 
 
@@ -1345,7 +1345,7 @@ index 740db5fa1e..dde50d66d8 100644
 +static constexpr uint8_t PSBT_GLOBAL_TX_MODIFIABLE = 0x06;
  static constexpr uint8_t PSBT_GLOBAL_VERSION = 0xFB;
  static constexpr uint8_t PSBT_GLOBAL_PROPRIETARY = 0xFC;
- 
+
 @@ -41,6 +46,11 @@ static constexpr uint8_t PSBT_IN_RIPEMD160 = 0x0A;
  static constexpr uint8_t PSBT_IN_SHA256 = 0x0B;
  static constexpr uint8_t PSBT_IN_HASH160 = 0x0C;
@@ -1367,7 +1367,7 @@ index 740db5fa1e..dde50d66d8 100644
  static constexpr uint8_t PSBT_OUT_TAP_INTERNAL_KEY = 0x05;
  static constexpr uint8_t PSBT_OUT_TAP_TREE = 0x06;
  static constexpr uint8_t PSBT_OUT_TAP_BIP32_DERIVATION = 0x07;
--- 
+--
 2.35.1
 
 
@@ -1407,14 +1407,14 @@ index b037807b53..872b684f11 100755
 +++ b/test/functional/rpc_psbt.py
 @@ -423,7 +423,7 @@ class PSBTTest(BitcoinTestFramework):
          # BIP 174 Test Vectors
- 
+
          # Check that unknown values are just passed through
 -        unknown_psbt = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
 +        unknown_psbt = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACvABAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
          unknown_out = self.nodes[0].walletprocesspsbt(unknown_psbt)['psbt']
          assert_equal(unknown_psbt, unknown_out)
- 
--- 
+
+--
 2.35.1
 
 
@@ -1437,16 +1437,16 @@ index dde50d66d8..cc56996321 100644
  #include <span.h>
  #include <streams.h>
 +#include <uint256.h>
- 
+
  #include <optional>
 +#include <bitset>
- 
+
  // Magic bytes
  static constexpr uint8_t PSBT_MAGIC_BYTES[5] = {'p', 's', 'b', 't', 0xff};
 @@ -216,6 +218,12 @@ struct PSBTInput
      std::map<uint160, std::vector<unsigned char>> hash160_preimages;
      std::map<uint256, std::vector<unsigned char>> hash256_preimages;
- 
+
 +    uint256 prev_txid;
 +    std::optional<uint32_t> prev_out;
 +    std::optional<uint32_t> sequence;
@@ -1459,7 +1459,7 @@ index dde50d66d8..cc56996321 100644
 @@ -358,6 +366,28 @@ struct PSBTInput
              SerializeToVector(s, final_script_witness.stack);
          }
- 
+
 +        // Write prev txid, vout, sequence, and lock times
 +        if (!prev_txid.IsNull()) {
 +            SerializeToVector(s, CompactSizeWriter(PSBT_IN_PREVIOUS_TXID));
@@ -1554,21 +1554,21 @@ index dde50d66d8..cc56996321 100644
      CScript redeem_script;
      CScript witness_script;
      std::map<CPubKey, KeyOriginInfo> hd_keypaths;
-+    
++
 +    std::optional<CAmount> amount;
 +    std::optional<CScript> script;
-+    
++
      XOnlyPubKey m_tap_internal_key;
      TaprootBuilder m_tap_tree;
      std::map<XOnlyPubKey, std::pair<std::set<uint256>, KeyOriginInfo>> m_tap_bip32_paths;
-+    
++
      std::map<std::vector<unsigned char>, std::vector<unsigned char>> unknown;
      std::set<PSBTProprietary> m_proprietary;
- 
+
 @@ -749,6 +842,16 @@ struct PSBTOutput
          // Write any hd keypaths
          SerializeHDKeypaths(s, hd_keypaths, CompactSizeWriter(PSBT_OUT_BIP32_DERIVATION));
- 
+
 +        // Write amount and spk
 +        if (amount != std::nullopt) {
 +            SerializeToVector(s, CompactSizeWriter(PSBT_OUT_AMOUNT));
@@ -1626,7 +1626,7 @@ index dde50d66d8..cc56996321 100644
 @@ -994,6 +1124,26 @@ struct PartiallySignedTransaction
              }
          }
- 
+
 +        // Write PSBTv2 tx version, locktime, counts, etc.
 +        if (tx_version != std::nullopt) {
 +            SerializeToVector(s, CompactSizeWriter(PSBT_GLOBAL_TX_VERSION));
@@ -1651,7 +1651,7 @@ index dde50d66d8..cc56996321 100644
          if (GetVersion() > 0) {
              SerializeToVector(s, CompactSizeWriter(PSBT_GLOBAL_VERSION));
 @@ -1043,6 +1193,10 @@ struct PartiallySignedTransaction
- 
+
          // Read global data
          bool found_sep = false;
 +        uint64_t input_count = 0;
@@ -1732,7 +1732,7 @@ index dde50d66d8..cc56996321 100644
                  }
                  case PSBT_GLOBAL_XPUB:
 @@ -1164,7 +1381,7 @@ struct PartiallySignedTransaction
- 
+
          // Read input data
          unsigned int i = 0;
 -        while (!s.empty() && i < tx->vin.size()) {
@@ -1748,7 +1748,7 @@ index dde50d66d8..cc56996321 100644
 +        if (inputs.size() != input_count) {
              throw std::ios_base::failure("Inputs provided does not match the number of inputs in transaction.");
          }
- 
+
          // Read output data
          i = 0;
 -        while (!s.empty() && i < tx->vout.size()) {
@@ -1771,7 +1771,7 @@ index 44bb471f25..fa1c64c41a 100644
 @@ -520,6 +520,19 @@ struct CompactSizeFormatter
      }
  };
- 
+
 +class CompactSizeReader
 +{
 +protected:
@@ -1788,7 +1788,7 @@ index 44bb471f25..fa1c64c41a 100644
  class CompactSizeWriter
  {
  protected:
--- 
+--
 2.35.1
 
 
@@ -1809,7 +1809,7 @@ index 891ed4c99d..5d334f776a 100644
 --- a/src/psbt.cpp
 +++ b/src/psbt.cpp
 @@ -10,8 +10,8 @@
- 
+
  PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction& tx) : tx(tx)
  {
 -    inputs.resize(tx.vin.size());
@@ -1817,7 +1817,7 @@ index 891ed4c99d..5d334f776a 100644
 +    inputs.resize(tx.vin.size(), PSBTInput(GetVersion()));
 +    outputs.resize(tx.vout.size(), PSBTOutput(GetVersion()));
  }
- 
+
  bool PartiallySignedTransaction::IsNull() const
 diff --git a/src/psbt.h b/src/psbt.h
 index cc56996321..ebefe204e9 100644
@@ -1826,7 +1826,7 @@ index cc56996321..ebefe204e9 100644
 @@ -236,11 +236,13 @@ struct PSBTInput
      std::set<PSBTProprietary> m_proprietary;
      std::optional<int> sighash_type;
- 
+
 +    uint32_t m_psbt_version;
 +
      bool IsNull() const;
@@ -1835,13 +1835,13 @@ index cc56996321..ebefe204e9 100644
      void Merge(const PSBTInput& input);
 -    PSBTInput() {}
 +    PSBTInput(uint32_t version) : m_psbt_version(version) {}
- 
+
      template <typename Stream>
      inline void Serialize(Stream& s) const {
 @@ -819,11 +821,13 @@ struct PSBTOutput
      std::map<std::vector<unsigned char>, std::vector<unsigned char>> unknown;
      std::set<PSBTProprietary> m_proprietary;
- 
+
 +    uint32_t m_psbt_version;
 +
      bool IsNull() const;
@@ -1850,13 +1850,13 @@ index cc56996321..ebefe204e9 100644
      void Merge(const PSBTOutput& output);
 -    PSBTOutput() {}
 +    PSBTOutput(uint32_t version) : m_psbt_version(version) {}
- 
+
      template <typename Stream>
      inline void Serialize(Stream& s) const {
 @@ -1379,10 +1383,12 @@ struct PartiallySignedTransaction
              throw std::ios_base::failure("No unsigned transcation was provided");
          }
- 
+
 +        uint32_t psbt_ver = GetVersion();
 +
          // Read input data
@@ -1866,7 +1866,7 @@ index cc56996321..ebefe204e9 100644
 +            PSBTInput input(psbt_ver);
              s >> input;
              inputs.push_back(input);
- 
+
 @@ -1400,7 +1406,7 @@ struct PartiallySignedTransaction
          // Read output data
          i = 0;
@@ -1891,7 +1891,7 @@ index b5189eb684..1453676256 100644
 -        psbtx.outputs.push_back(PSBTOutput());
 +        psbtx.outputs.push_back(PSBTOutput(0));
      }
- 
+
      // Serialize the PSBT
 @@ -1921,10 +1921,10 @@ static RPCHelpMan converttopsbt()
      PartiallySignedTransaction psbtx;
@@ -1904,7 +1904,7 @@ index b5189eb684..1453676256 100644
 -        psbtx.outputs.push_back(PSBTOutput());
 +        psbtx.outputs.push_back(PSBTOutput(0));
      }
- 
+
      // Serialize the PSBT
 diff --git a/src/test/fuzz/deserialize.cpp b/src/test/fuzz/deserialize.cpp
 index ed6f172a2a..d248195fbe 100644
@@ -1924,7 +1924,7 @@ index ed6f172a2a..d248195fbe 100644
      DeserializeFromFuzzingInput(buffer, psbt_output);
  })
  FUZZ_TARGET_DESERIALIZE(block_deserialize, {
--- 
+--
 2.35.1
 
 
@@ -1946,7 +1946,7 @@ index ebefe204e9..f2f8ba8c15 100644
 @@ -368,26 +368,29 @@ struct PSBTInput
              SerializeToVector(s, final_script_witness.stack);
          }
- 
+
 -        // Write prev txid, vout, sequence, and lock times
 -        if (!prev_txid.IsNull()) {
 -            SerializeToVector(s, CompactSizeWriter(PSBT_IN_PREVIOUS_TXID));
@@ -1991,7 +1991,7 @@ index ebefe204e9..f2f8ba8c15 100644
 +                SerializeToVector(s, *height_locktime);
 +            }
          }
- 
+
          // Write proprietary things
 @@ -619,6 +622,8 @@ struct PSBTInput
                          throw std::ios_base::failure("Duplicate Key, previous txid is already provided");
@@ -2053,12 +2053,12 @@ index ebefe204e9..f2f8ba8c15 100644
 +            }
 +        }
      }
- 
+
      template <typename Stream>
 @@ -846,14 +869,16 @@ struct PSBTOutput
          // Write any hd keypaths
          SerializeHDKeypaths(s, hd_keypaths, CompactSizeWriter(PSBT_OUT_BIP32_DERIVATION));
- 
+
 -        // Write amount and spk
 -        if (amount != std::nullopt) {
 -            SerializeToVector(s, CompactSizeWriter(PSBT_OUT_AMOUNT));
@@ -2078,7 +2078,7 @@ index ebefe204e9..f2f8ba8c15 100644
 +                s << *script;
 +            }
          }
- 
+
          // Write proprietary things
 @@ -1060,6 +1085,16 @@ struct PSBTOutput
          if (!found_sep) {
@@ -2095,18 +2095,18 @@ index ebefe204e9..f2f8ba8c15 100644
 +            }
 +        }
      }
- 
+
      template <typename Stream>
 @@ -1109,12 +1144,14 @@ struct PartiallySignedTransaction
          // magic bytes
          s << PSBT_MAGIC_BYTES;
- 
+
 -        // unsigned tx flag
 -        SerializeToVector(s, CompactSizeWriter(PSBT_GLOBAL_UNSIGNED_TX));
 +        if (GetVersion() == 0) {
 +            // unsigned tx flag
 +            SerializeToVector(s, CompactSizeWriter(PSBT_GLOBAL_UNSIGNED_TX));
- 
+
 -        // Write serialized tx to a stream
 -        OverrideStream<Stream> os(&s, s.GetType(), s.GetVersion() | SERIALIZE_TRANSACTION_NO_WITNESS);
 -        SerializeToVector(os, *tx);
@@ -2114,13 +2114,13 @@ index ebefe204e9..f2f8ba8c15 100644
 +            OverrideStream<Stream> os(&s, s.GetType(), s.GetVersion() | SERIALIZE_TRANSACTION_NO_WITNESS);
 +            SerializeToVector(os, *tx);
 +        }
- 
+
          // Write xpubs
          for (const auto& xpub_pair : m_xpubs) {
 @@ -1128,24 +1165,24 @@ struct PartiallySignedTransaction
              }
          }
- 
+
 -        // Write PSBTv2 tx version, locktime, counts, etc.
 -        if (tx_version != std::nullopt) {
 +        if (GetVersion() >= 2) {
@@ -2152,19 +2152,19 @@ index ebefe204e9..f2f8ba8c15 100644
 +                SerializeToVector(s, static_cast<uint8_t>(m_tx_modifiable->to_ulong()));
 +            }
          }
- 
+
          // PSBT version
 @@ -1378,13 +1415,52 @@ struct PartiallySignedTransaction
              throw std::ios_base::failure("Separator is missing at the end of the global map");
          }
- 
+
 -        // Make sure that we got an unsigned tx
 -        if (!tx) {
 -            throw std::ios_base::failure("No unsigned transcation was provided");
 -        }
 -
          uint32_t psbt_ver = GetVersion();
- 
+
 +        // Check PSBT version constraints
 +        if (psbt_ver == 0) {
 +            // Make sure that we got an unsigned tx for PSBTv0
@@ -2214,14 +2214,14 @@ index ebefe204e9..f2f8ba8c15 100644
          while (!s.empty() && i < input_count) {
 @@ -1393,7 +1469,7 @@ struct PartiallySignedTransaction
              inputs.push_back(input);
- 
+
              // Make sure the non-witness utxo matches the outpoint
 -            if (input.non_witness_utxo && input.non_witness_utxo->GetHash() != tx->vin[i].prevout.hash) {
 +            if (input.non_witness_utxo && ((tx != std::nullopt && input.non_witness_utxo->GetHash() != tx->vin[i].prevout.hash) || (!input.prev_txid.IsNull() && input.non_witness_utxo->GetHash() != input.prev_txid))) {
                  throw std::ios_base::failure("Non-witness UTXO does not match outpoint hash");
              }
              ++i;
--- 
+--
 2.35.1
 
 
@@ -2292,7 +2292,7 @@ index f2f8ba8c15..9404bf8816 100644
      PartiallySignedTransaction() {}
      explicit PartiallySignedTransaction(const CMutableTransaction& tx);
      /**
--- 
+--
 2.35.1
 
 
@@ -2315,9 +2315,9 @@ index 1b4d963dce..25f8ac0b58 100644
      outputs.resize(tx.vout.size(), PSBTOutput(GetVersion()));
 +    CacheUnsignedTxPieces();
  }
- 
+
  bool PartiallySignedTransaction::IsNull() const
--- 
+--
 2.35.1
 
 
@@ -2342,9 +2342,9 @@ index 9404bf8816..6190d259e1 100644
 +
 +        CacheUnsignedTxPieces();
      }
- 
+
      template <typename Stream>
--- 
+--
 2.35.1
 
 
@@ -2367,7 +2367,7 @@ index 5a932f435d..eca2da5fd4 100644
 --- a/src/node/psbt.cpp
 +++ b/src/node/psbt.cpp
 @@ -35,7 +35,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
- 
+
          // Check for a UTXO
          CTxOut utxo;
 -        if (psbtx.GetInputUTXO(utxo, i)) {
@@ -2378,7 +2378,7 @@ index 5a932f435d..eca2da5fd4 100644
 @@ -124,7 +124,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
              PSBTInput& input = psbtx.inputs[i];
              Coin newcoin;
- 
+
 -            if (!SignPSBTInput(DUMMY_SIGNING_PROVIDER, psbtx, i, nullptr, 1) || !psbtx.GetInputUTXO(newcoin.out, i)) {
 +            if (!SignPSBTInput(DUMMY_SIGNING_PROVIDER, psbtx, i, nullptr, 1) || !input.GetUTXO(newcoin.out)) {
                  success = false;
@@ -2391,7 +2391,7 @@ index 25f8ac0b58..8cc8581fc8 100644
 @@ -65,20 +65,18 @@ bool PartiallySignedTransaction::AddOutput(const CTxOut& txout, const PSBTOutput
      return true;
  }
- 
+
 -bool PartiallySignedTransaction::GetInputUTXO(CTxOut& utxo, int input_index) const
 +bool PSBTInput::GetUTXO(CTxOut& utxo) const
  {
@@ -2445,7 +2445,7 @@ index 6190d259e1..9eb6687163 100644
 +     */
 +    bool GetUTXO(CTxOut& utxo) const;
      PSBTInput(uint32_t version) : m_psbt_version(version) {}
- 
+
      template <typename Stream>
 @@ -1131,14 +1138,6 @@ struct PartiallySignedTransaction
      void CacheUnsignedTxPieces();
@@ -2459,7 +2459,7 @@ index 6190d259e1..9eb6687163 100644
 -     * @return Whether the UTXO for the specified input was found
 -     */
 -    bool GetInputUTXO(CTxOut& utxo, int input_index) const;
- 
+
      template <typename Stream>
      inline void Serialize(Stream& s) const {
 diff --git a/src/test/fuzz/psbt.cpp b/src/test/fuzz/psbt.cpp
@@ -2467,7 +2467,7 @@ index 669688a80d..733fccb4a7 100644
 --- a/src/test/fuzz/psbt.cpp
 +++ b/src/test/fuzz/psbt.cpp
 @@ -63,7 +63,7 @@ FUZZ_TARGET_INIT(psbt, initialize_psbt)
- 
+
      for (size_t i = 0; i < psbt.tx->vin.size(); ++i) {
          CTxOut tx_out;
 -        if (psbt.GetInputUTXO(tx_out, i)) {
@@ -2475,7 +2475,7 @@ index 669688a80d..733fccb4a7 100644
              (void)tx_out.IsNull();
              (void)tx_out.ToString();
          }
--- 
+--
 2.35.1
 
 
@@ -2497,7 +2497,7 @@ index 8cc8581fc8..0ac39e9c73 100644
 @@ -45,6 +45,41 @@ bool PartiallySignedTransaction::Merge(const PartiallySignedTransaction& psbt)
      return true;
  }
- 
+
 +bool PartiallySignedTransaction::ComputeTimeLock(uint32_t& locktime) const
 +{
 +    std::optional<uint32_t> time_lock{0};
@@ -2547,8 +2547,8 @@ index 9eb6687163..6b0eaa1ac8 100644
 +    bool ComputeTimeLock(uint32_t& locktime) const;
      PartiallySignedTransaction() {}
      explicit PartiallySignedTransaction(const CMutableTransaction& tx);
- 
--- 
+
+--
 2.35.1
 
 
@@ -2569,17 +2569,17 @@ index 0ac39e9c73..0173834100 100644
 --- a/src/psbt.cpp
 +++ b/src/psbt.cpp
 @@ -4,6 +4,7 @@
- 
+
  #include <psbt.h>
- 
+
 +#include <primitives/transaction.h>
  #include <util/check.h>
  #include <util/strencodings.h>
- 
+
 @@ -80,6 +81,33 @@ bool PartiallySignedTransaction::ComputeTimeLock(uint32_t& locktime) const
      return true;
  }
- 
+
 +CMutableTransaction PartiallySignedTransaction::GetUnsignedTx() const
 +{
 +    if (tx != std::nullopt) {
@@ -2621,8 +2621,8 @@ index 6b0eaa1ac8..a67e8081a3 100644
 +    CMutableTransaction GetUnsignedTx() const;
      PartiallySignedTransaction() {}
      explicit PartiallySignedTransaction(const CMutableTransaction& tx);
- 
--- 
+
+--
 2.35.1
 
 
@@ -2650,11 +2650,11 @@ index 0173834100..bd41b28ad4 100644
 +    if (GetUniqueID() != psbt.GetUniqueID()) {
          return false;
      }
- 
+
 @@ -108,6 +108,23 @@ CMutableTransaction PartiallySignedTransaction::GetUnsignedTx() const
      return mtx;
  }
- 
+
 +uint256 PartiallySignedTransaction::GetUniqueID() const
 +{
 +    if (tx != std::nullopt) {
@@ -2686,8 +2686,8 @@ index a67e8081a3..ff5d842135 100644
 +    uint256 GetUniqueID() const;
      PartiallySignedTransaction() {}
      explicit PartiallySignedTransaction(const CMutableTransaction& tx);
- 
--- 
+
+--
 2.35.1
 
 
@@ -2710,7 +2710,7 @@ index bd41b28ad4..f6472c6c70 100644
 @@ -125,17 +125,32 @@ uint256 PartiallySignedTransaction::GetUniqueID() const
      return mtx.GetHash();
  }
- 
+
 -bool PartiallySignedTransaction::AddInput(const CTxIn& txin, PSBTInput& psbtin)
 +bool PartiallySignedTransaction::AddInput(PSBTInput& psbtin)
  {
@@ -2746,7 +2746,7 @@ index bd41b28ad4..f6472c6c70 100644
 +    // TODO: Do PSBTv2
 +    return false;
  }
- 
+
  bool PartiallySignedTransaction::AddOutput(const CTxOut& txout, const PSBTOutput& psbtout)
 diff --git a/src/psbt.h b/src/psbt.h
 index ff5d842135..d088696fcb 100644
@@ -2754,7 +2754,7 @@ index ff5d842135..d088696fcb 100644
 +++ b/src/psbt.h
 @@ -1132,7 +1132,7 @@ struct PartiallySignedTransaction
      /** Merge psbt into this. The two psbts must have the same underlying CTransaction (i.e. the
-       * same actual Bitcoin transaction.) Returns true if the merge succeeded, false otherwise. */
+       * same actual Groestlcoin transaction.) Returns true if the merge succeeded, false otherwise. */
      [[nodiscard]] bool Merge(const PartiallySignedTransaction& psbt);
 -    bool AddInput(const CTxIn& txin, PSBTInput& psbtin);
 +    bool AddInput(PSBTInput& psbtin);
@@ -2798,7 +2798,7 @@ index 733fccb4a7..c05d797738 100644
      }
      for (unsigned int i = 0; i < psbt_merge.tx->vout.size(); ++i) {
          Assert(psbt_mut.AddOutput(psbt_merge.tx->vout[i], psbt_merge.outputs[i]));
--- 
+--
 2.35.1
 
 
@@ -2821,7 +2821,7 @@ index f6472c6c70..180ac6684d 100644
 @@ -153,11 +153,18 @@ bool PartiallySignedTransaction::AddInput(PSBTInput& psbtin)
      return false;
  }
- 
+
 -bool PartiallySignedTransaction::AddOutput(const CTxOut& txout, const PSBTOutput& psbtout)
 +bool PartiallySignedTransaction::AddOutput(const PSBTOutput& psbtout)
  {
@@ -2839,14 +2839,14 @@ index f6472c6c70..180ac6684d 100644
 +    // TOOD: Do PSBTv2
 +    return false;
  }
- 
+
  bool PSBTInput::GetUTXO(CTxOut& utxo) const
 diff --git a/src/psbt.h b/src/psbt.h
 index d088696fcb..e47a7a1a0f 100644
 --- a/src/psbt.h
 +++ b/src/psbt.h
 @@ -1133,7 +1133,7 @@ struct PartiallySignedTransaction
-       * same actual Bitcoin transaction.) Returns true if the merge succeeded, false otherwise. */
+       * same actual Groestlcoin transaction.) Returns true if the merge succeeded, false otherwise. */
      [[nodiscard]] bool Merge(const PartiallySignedTransaction& psbt);
      bool AddInput(PSBTInput& psbtin);
 -    bool AddOutput(const CTxOut& txout, const PSBTOutput& psbtout);
@@ -2875,7 +2875,7 @@ index edfa879f6e..f34614001a 100644
 +        shuffled_psbt.AddOutput(merged_psbt.outputs[i]);
      }
      shuffled_psbt.unknown.insert(merged_psbt.unknown.begin(), merged_psbt.unknown.end());
- 
+
 diff --git a/src/test/fuzz/psbt.cpp b/src/test/fuzz/psbt.cpp
 index c05d797738..8bac8d7c2b 100644
 --- a/src/test/fuzz/psbt.cpp
@@ -2891,7 +2891,7 @@ index c05d797738..8bac8d7c2b 100644
      }
      psbt_mut.unknown.insert(psbt_merge.unknown.begin(), psbt_merge.unknown.end());
  }
--- 
+--
 2.35.1
 
 
@@ -2911,7 +2911,7 @@ index 180ac6684d..02e9b74bbf 100644
 @@ -28,6 +28,7 @@ bool PartiallySignedTransaction::Merge(const PartiallySignedTransaction& psbt)
          return false;
      }
- 
+
 +    assert(*tx_version == psbt.tx_version);
      for (unsigned int i = 0; i < inputs.size(); ++i) {
          inputs[i].Merge(psbt.inputs[i]);
@@ -2923,10 +2923,10 @@ index 180ac6684d..02e9b74bbf 100644
 +    if (fallback_locktime == std::nullopt && psbt.fallback_locktime != std::nullopt) fallback_locktime = psbt.fallback_locktime;
 +    if (m_tx_modifiable == std::nullopt && psbt.m_tx_modifiable != std::nullopt) m_tx_modifiable = psbt.m_tx_modifiable;
      unknown.insert(psbt.unknown.begin(), psbt.unknown.end());
- 
+
      return true;
 @@ -283,6 +286,9 @@ void PSBTInput::FromSignatureData(const SignatureData& sigdata)
- 
+
  void PSBTInput::Merge(const PSBTInput& input)
  {
 +    assert(prev_txid == input.prev_txid);
@@ -2946,7 +2946,7 @@ index 180ac6684d..02e9b74bbf 100644
      if (m_tap_internal_key.IsNull() && !input.m_tap_internal_key.IsNull()) m_tap_internal_key = input.m_tap_internal_key;
      if (m_tap_merkle_root.IsNull() && !input.m_tap_merkle_root.IsNull()) m_tap_merkle_root = input.m_tap_merkle_root;
 @@ -360,6 +369,9 @@ bool PSBTOutput::IsNull() const
- 
+
  void PSBTOutput::Merge(const PSBTOutput& output)
  {
 +    assert(*amount == *output.amount);
@@ -2955,7 +2955,7 @@ index 180ac6684d..02e9b74bbf 100644
      hd_keypaths.insert(output.hd_keypaths.begin(), output.hd_keypaths.end());
      unknown.insert(output.unknown.begin(), output.unknown.end());
      m_tap_bip32_paths.insert(output.m_tap_bip32_paths.begin(), output.m_tap_bip32_paths.end());
--- 
+--
 2.35.1
 
 
@@ -2977,7 +2977,7 @@ index 02e9b74bbf..696dc5d005 100644
 @@ -188,6 +188,11 @@ bool PSBTInput::GetUTXO(CTxOut& utxo) const
      return true;
  }
- 
+
 +COutPoint PSBTInput::GetOutPoint() const
 +{
 +    return COutPoint(prev_txid, *prev_out);
@@ -2996,9 +2996,9 @@ index e47a7a1a0f..a08223fadb 100644
      bool GetUTXO(CTxOut& utxo) const;
 +    COutPoint GetOutPoint() const;
      PSBTInput(uint32_t version) : m_psbt_version(version) {}
- 
+
      template <typename Stream>
--- 
+--
 2.35.1
 
 
@@ -3021,11 +3021,11 @@ index 696dc5d005..6d7fe8aac1 100644
      PSBTInput& input = psbt.inputs.at(index);
 -    const CMutableTransaction& tx = *psbt.tx;
 +    const CMutableTransaction& tx = psbt.GetUnsignedTx();
- 
+
      if (PSBTInputSigned(input)) {
          return true;
 @@ -458,7 +458,7 @@ bool SignPSBTInput(const SigningProvider& provider, PartiallySignedTransaction&
- 
+
      if (input.non_witness_utxo) {
          // If we're taking our information from a non-witness UTXO, verify that it matches the prevout.
 -        COutPoint prevout = tx.vin[index].prevout;
@@ -3033,7 +3033,7 @@ index 696dc5d005..6d7fe8aac1 100644
          if (prevout.n >= input.non_witness_utxo->vout.size()) {
              return false;
          }
--- 
+--
 2.35.1
 
 
@@ -3051,7 +3051,7 @@ index 6d7fe8aac1..10ceefa996 100644
 --- a/src/psbt.cpp
 +++ b/src/psbt.cpp
 @@ -424,7 +424,7 @@ void UpdatePSBTOutput(const SigningProvider& provider, PartiallySignedTransactio
- 
+
  PrecomputedTransactionData PrecomputePSBTData(const PartiallySignedTransaction& psbt)
  {
 -    const CMutableTransaction& tx = *psbt.tx;
@@ -3059,7 +3059,7 @@ index 6d7fe8aac1..10ceefa996 100644
      bool have_all_spent_outputs = true;
      std::vector<CTxOut> utxos;
      for (const PSBTInput& input : psbt.inputs) {
--- 
+--
 2.35.1
 
 
@@ -3084,17 +3084,17 @@ index 10ceefa996..e84fd4f985 100644
 +    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
          complete &= SignPSBTInput(DUMMY_SIGNING_PROVIDER, psbtx, i, &txdata, SIGHASH_ALL, nullptr, true);
      }
- 
+
 @@ -535,7 +535,7 @@ bool FinalizeAndExtractPSBT(PartiallySignedTransaction& psbtx, CMutableTransacti
          return false;
      }
- 
+
 -    result = *psbtx.tx;
 +    result = psbtx.GetUnsignedTx();
      for (unsigned int i = 0; i < result.vin.size(); ++i) {
          result.vin[i].scriptSig = psbtx.inputs[i].final_script_sig;
          result.vin[i].scriptWitness = psbtx.inputs[i].final_script_witness;
--- 
+--
 2.35.1
 
 
@@ -3112,19 +3112,19 @@ index eca2da5fd4..888d298465 100644
 --- a/src/node/psbt.cpp
 +++ b/src/node/psbt.cpp
 @@ -22,11 +22,11 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
- 
+
      CAmount in_amt = 0;
- 
+
 -    result.inputs.resize(psbtx.tx->vin.size());
 +    result.inputs.resize(psbtx.inputs.size());
- 
+
      const PrecomputedTransactionData txdata = PrecomputePSBTData(psbtx);
- 
+
 -    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
 +    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
          PSBTInput& input = psbtx.inputs[i];
          PSBTInputAnalysis& input_analysis = result.inputs[i];
- 
+
 @@ -43,7 +43,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
              in_amt += utxo.nValue;
              input_analysis.has_utxo = true;
@@ -3135,7 +3135,7 @@ index eca2da5fd4..888d298465 100644
                  return result;
              }
 @@ -89,7 +89,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
- 
+
      // Calculate next role for PSBT by grabbing "minimum" PSBTInput next role
      result.next = PSBTRole::EXTRACTOR;
 -    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
@@ -3144,7 +3144,7 @@ index eca2da5fd4..888d298465 100644
          result.next = std::min(result.next, input_analysis.next);
      }
 @@ -97,12 +97,12 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
- 
+
      if (calc_fee) {
          // Get the output amount
 -        CAmount out_amt = std::accumulate(psbtx.tx->vout.begin(), psbtx.tx->vout.end(), CAmount(0),
@@ -3162,19 +3162,19 @@ index eca2da5fd4..888d298465 100644
          if (!MoneyRange(out_amt)) {
 @@ -115,12 +115,12 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
          result.fee = fee;
- 
+
          // Estimate the size
 -        CMutableTransaction mtx(*psbtx.tx);
 +        CMutableTransaction mtx(psbtx.GetUnsignedTx());
          CCoinsView view_dummy;
          CCoinsViewCache view(&view_dummy);
          bool success = true;
- 
+
 -        for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
 +        for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
              PSBTInput& input = psbtx.inputs[i];
              Coin newcoin;
- 
+
 @@ -131,7 +131,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
                  mtx.vin[i].scriptSig = input.final_script_sig;
                  mtx.vin[i].scriptWitness = input.final_script_witness;
@@ -3183,8 +3183,8 @@ index eca2da5fd4..888d298465 100644
 +                view.AddCoin(input.GetOutPoint(), std::move(newcoin), true);
              }
          }
- 
--- 
+
+--
 2.35.1
 
 
@@ -3218,7 +3218,7 @@ index d328290cbc..e6c11d6822 100644
              .arg(QString::fromStdString(EncodeDestination(address))));
          tx_description.append("<br>");
      }
--- 
+--
 2.35.1
 
 
@@ -3236,9 +3236,9 @@ index f34614001a..e7cf0c0738 100644
 --- a/src/rpc/rawtransaction.cpp
 +++ b/src/rpc/rawtransaction.cpp
 @@ -1323,10 +1323,12 @@ static RPCHelpMan decodepsbt()
- 
+
      UniValue result(UniValue::VOBJ);
- 
+
 -    // Add the decoded tx
 -    UniValue tx_univ(UniValue::VOBJ);
 -    TxToUniv(CTransaction(*psbtx.tx), uint256(), tx_univ, false);
@@ -3249,7 +3249,7 @@ index f34614001a..e7cf0c0738 100644
 +        TxToUniv(CTransaction(*psbtx.tx), uint256(), tx_univ, false);
 +        result.pushKV("tx", tx_univ);
 +    }
- 
+
      // Add the global xpubs
      UniValue global_xpubs(UniValue::VARR);
 @@ -1392,7 +1394,7 @@ static RPCHelpMan decodepsbt()
@@ -3258,12 +3258,12 @@ index f34614001a..e7cf0c0738 100644
          if (input.non_witness_utxo) {
 -            txout = input.non_witness_utxo->vout[psbtx.tx->vin[i].prevout.n];
 +            txout = input.non_witness_utxo->vout[*input.prev_out];
- 
+
              UniValue non_wit(UniValue::VOBJ);
              TxToUniv(*input.non_witness_utxo, uint256(), non_wit, false);
 @@ -1693,8 +1695,8 @@ static RPCHelpMan decodepsbt()
          outputs.push_back(out);
- 
+
          // Fee calculation
 -        if (MoneyRange(psbtx.tx->vout[i].nValue) && MoneyRange(output_value + psbtx.tx->vout[i].nValue)) {
 -            output_value += psbtx.tx->vout[i].nValue;
@@ -3275,44 +3275,44 @@ index f34614001a..e7cf0c0738 100644
 @@ -1990,8 +1992,8 @@ static RPCHelpMan utxoupdatepsbt()
          CCoinsViewMemPool viewMempool(&viewChain, mempool);
          view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
- 
+
 -        for (const CTxIn& txin : psbtx.tx->vin) {
 -            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
 +        for (const PSBTInput& txin : psbtx.inputs) {
 +            view.AccessCoin(txin.GetOutPoint()); // Load entries from viewChain into view; can fail.
          }
- 
+
          view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
 @@ -1999,14 +2001,14 @@ static RPCHelpMan utxoupdatepsbt()
- 
+
      // Fill the inputs
      const PrecomputedTransactionData txdata = PrecomputePSBTData(psbtx);
 -    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
 +    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
          PSBTInput& input = psbtx.inputs.at(i);
- 
+
          if (input.non_witness_utxo || !input.witness_utxo.IsNull()) {
              continue;
          }
- 
+
 -        const Coin& coin = view.AccessCoin(psbtx.tx->vin[i].prevout);
 +        const Coin& coin = view.AccessCoin(input.GetOutPoint());
- 
+
          if (IsSegWitOutput(provider, coin.out.scriptPubKey)) {
              input.witness_utxo = coin.out;
 @@ -2019,7 +2021,7 @@ static RPCHelpMan utxoupdatepsbt()
      }
- 
+
      // Update script/keypath information using descriptor data.
 -    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
 +    for (unsigned int i = 0; i < psbtx.outputs.size(); ++i) {
          UpdatePSBTOutput(public_provider, psbtx, i);
      }
- 
+
 @@ -2059,7 +2061,7 @@ static RPCHelpMan joinpsbts()
          throw JSONRPCError(RPC_INVALID_PARAMETER, "At least two PSBTs are required to join PSBTs.");
      }
- 
+
 -    uint32_t best_version = 1;
 +    int32_t best_version = 1;
      uint32_t best_locktime = 0xffffffff;
@@ -3334,7 +3334,7 @@ index f34614001a..e7cf0c0738 100644
 +            best_locktime = *psbtx.fallback_locktime;
          }
      }
- 
+
      // Create a blank psbt where everything will be added
      PartiallySignedTransaction merged_psbt;
 +    merged_psbt.tx_version = best_version;
@@ -3344,7 +3344,7 @@ index f34614001a..e7cf0c0738 100644
 -    merged_psbt.tx->nVersion = static_cast<int32_t>(best_version);
 +    merged_psbt.tx->nVersion = best_version;
      merged_psbt.tx->nLockTime = best_locktime;
- 
+
      // Merge
      for (auto& psbt : psbtxs) {
 -        for (unsigned int i = 0; i < psbt.tx->vin.size(); ++i) {
@@ -3361,7 +3361,7 @@ index f34614001a..e7cf0c0738 100644
          for (auto& xpub_pair : psbt.m_xpubs) {
 @@ -2115,6 +2120,9 @@ static RPCHelpMan joinpsbts()
      Shuffle(output_indices.begin(), output_indices.end(), FastRandomContext());
- 
+
      PartiallySignedTransaction shuffled_psbt;
 +    shuffled_psbt.tx_version = merged_psbt.tx_version;
 +    shuffled_psbt.fallback_locktime = merged_psbt.fallback_locktime;
@@ -3369,7 +3369,7 @@ index f34614001a..e7cf0c0738 100644
      shuffled_psbt.tx = CMutableTransaction();
      shuffled_psbt.tx->nVersion = merged_psbt.tx->nVersion;
      shuffled_psbt.tx->nLockTime = merged_psbt.tx->nLockTime;
--- 
+--
 2.35.1
 
 
@@ -3396,10 +3396,10 @@ index 7218ed11dc..b5884dfa9d 100644
 -        const CTxIn& txin = psbtx.tx->vin[i];
 +    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
          PSBTInput& input = psbtx.inputs.at(i);
- 
+
          if (PSBTInputSigned(input)) {
 @@ -640,7 +639,7 @@ TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psb
- 
+
          // Check non_witness_utxo has specified prevout
          if (input.non_witness_utxo) {
 -            if (txin.prevout.n >= input.non_witness_utxo->vout.size()) {
@@ -3409,13 +3409,13 @@ index 7218ed11dc..b5884dfa9d 100644
          } else if (input.witness_utxo.IsNull()) {
 @@ -661,7 +660,7 @@ TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psb
      }
- 
+
      // Fill in the bip32 keypaths and redeemscripts for the outputs so that hardware wallets can identify change
 -    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
 +    for (unsigned int i = 0; i < psbtx.outputs.size(); ++i) {
          UpdatePSBTOutput(HidingSigningProvider(this, true, !bip32derivs), psbtx, i);
      }
- 
+
 @@ -2106,8 +2105,7 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
      if (n_signed) {
          *n_signed = 0;
@@ -3424,7 +3424,7 @@ index 7218ed11dc..b5884dfa9d 100644
 -        const CTxIn& txin = psbtx.tx->vin[i];
 +    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
          PSBTInput& input = psbtx.inputs.at(i);
- 
+
          if (PSBTInputSigned(input)) {
 @@ -2124,10 +2122,10 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
          if (!input.witness_utxo.IsNull()) {
@@ -3441,7 +3441,7 @@ index 7218ed11dc..b5884dfa9d 100644
              continue;
 @@ -2163,8 +2161,8 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
      }
- 
+
      // Fill in the bip32 keypaths and redeemscripts for the outputs so that hardware wallets can identify change
 -    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
 -        std::unique_ptr<SigningProvider> keys = GetSolvingProvider(psbtx.tx->vout.at(i).scriptPubKey);
@@ -3455,11 +3455,11 @@ index b953f402a2..33a3a7086b 100644
 --- a/src/wallet/test/psbt_wallet_tests.cpp
 +++ b/src/wallet/test/psbt_wallet_tests.cpp
 @@ -64,6 +64,7 @@ BOOST_AUTO_TEST_CASE(psbt_updater_test)
- 
+
      // Mutate the transaction so that one of the inputs is invalid
      psbtx.tx->vin[0].prevout.n = 2;
 +    psbtx.inputs[0].prev_out = 2;
- 
+
      // Try to sign the mutated input
      SignatureData sigdata;
 diff --git a/src/wallet/wallet.cpp b/src/wallet/wallet.cpp
@@ -3478,7 +3478,7 @@ index ae069ca9fc..cd17592638 100644
          if (PSBTInputSigned(input)) {
              continue;
          }
- 
+
          // If we have no utxo, grab it from the wallet.
          if (!input.non_witness_utxo) {
 -            const uint256& txhash = txin.prevout.hash;
@@ -3486,7 +3486,7 @@ index ae069ca9fc..cd17592638 100644
              const auto it = mapWallet.find(txhash);
              if (it != mapWallet.end()) {
                  const CWalletTx& wtx = it->second;
--- 
+--
 2.35.1
 
 
@@ -3504,7 +3504,7 @@ index e84fd4f985..71bef16e25 100644
 --- a/src/psbt.cpp
 +++ b/src/psbt.cpp
 @@ -130,7 +130,10 @@ uint256 PartiallySignedTransaction::GetUniqueID() const
- 
+
  bool PartiallySignedTransaction::AddInput(PSBTInput& psbtin)
  {
 -    if (std::find_if(inputs.begin(), inputs.end(),
@@ -3518,7 +3518,7 @@ index e84fd4f985..71bef16e25 100644
 @@ -152,12 +155,71 @@ bool PartiallySignedTransaction::AddInput(PSBTInput& psbtin)
          return true;
      }
- 
+
 -    // TODO: Do PSBTv2
 -    return false;
 +    // No global tx, must be PSBTv2.
@@ -3579,7 +3579,7 @@ index e84fd4f985..71bef16e25 100644
 +    inputs.push_back(psbtin);
 +    return true;
  }
- 
+
  bool PartiallySignedTransaction::AddOutput(const PSBTOutput& psbtout)
  {
 +    if (psbtout.amount == std::nullopt || !psbtout.script.has_value()) {
@@ -3592,7 +3592,7 @@ index e84fd4f985..71bef16e25 100644
 @@ -166,8 +228,14 @@ bool PartiallySignedTransaction::AddOutput(const PSBTOutput& psbtout)
          return true;
      }
- 
+
 -    // TOOD: Do PSBTv2
 -    return false;
 +    // No global tx, must be PSBTv2
@@ -3604,9 +3604,9 @@ index e84fd4f985..71bef16e25 100644
 +
 +    return true;
  }
- 
+
  bool PSBTInput::GetUTXO(CTxOut& utxo) const
--- 
+--
 2.35.1
 
 
@@ -3667,7 +3667,7 @@ index e7cf0c0738..d435bc3efc 100644
 @@ -1347,6 +1365,23 @@ static RPCHelpMan decodepsbt()
      }
      result.pushKV("global_xpubs", global_xpubs);
- 
+
 +    // Add PSBTv2 stuff
 +    if (psbtx.GetVersion() == 2) {
 +        if (psbtx.tx_version != std::nullopt) {
@@ -3687,11 +3687,11 @@ index e7cf0c0738..d435bc3efc 100644
 +
      // PSBT version
      result.pushKV("psbt_version", static_cast<uint64_t>(psbtx.GetVersion()));
- 
+
 @@ -1504,6 +1539,25 @@ static RPCHelpMan decodepsbt()
              in.pushKV("hash256_preimages", hash256_preimages);
          }
- 
+
 +        // PSBTv2
 +        if (psbtx.GetVersion() == 2) {
 +            if (!input.prev_txid.IsNull()) {
@@ -3717,7 +3717,7 @@ index e7cf0c0738..d435bc3efc 100644
 @@ -1628,6 +1682,18 @@ static RPCHelpMan decodepsbt()
              out.pushKV("bip32_derivs", keypaths);
          }
- 
+
 +        // PSBTv2 stuff
 +        if (psbtx.GetVersion() == 2) {
 +            if (output.amount != std::nullopt) {
@@ -3733,7 +3733,7 @@ index e7cf0c0738..d435bc3efc 100644
          // Taproot internal key
          if (!output.m_tap_internal_key.IsNull()) {
              out.pushKV("taproot_internal_key", HexStr(output.m_tap_internal_key));
--- 
+--
 2.35.1
 
 
@@ -3753,8 +3753,8 @@ index 71bef16e25..42adb35f33 100644
 +++ b/src/psbt.cpp
 @@ -9,11 +9,14 @@
  #include <util/strencodings.h>
- 
- 
+
+
 -PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction& tx) : tx(tx)
 +PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction& tx, uint32_t version) : m_version(version)
  {
@@ -3766,7 +3766,7 @@ index 71bef16e25..42adb35f33 100644
 -    CacheUnsignedTxPieces();
 +    SetupFromTx(tx);
  }
- 
+
  bool PartiallySignedTransaction::IsNull() const
 diff --git a/src/psbt.h b/src/psbt.h
 index a08223fadb..072dfa72cc 100644
@@ -3778,10 +3778,10 @@ index a08223fadb..072dfa72cc 100644
      PartiallySignedTransaction() {}
 -    explicit PartiallySignedTransaction(const CMutableTransaction& tx);
 +    explicit PartiallySignedTransaction(const CMutableTransaction& tx, uint32_t version = 0);
- 
+
      template <typename Stream>
      inline void Serialize(Stream& s) const {
--- 
+--
 2.35.1
 
 
@@ -3799,15 +3799,15 @@ index 42adb35f33..0a50265e19 100644
 --- a/src/psbt.cpp
 +++ b/src/psbt.cpp
 @@ -475,7 +475,7 @@ size_t CountPSBTUnsignedInputs(const PartiallySignedTransaction& psbt) {
- 
+
  void UpdatePSBTOutput(const SigningProvider& provider, PartiallySignedTransaction& psbt, int index)
  {
 -    CMutableTransaction& tx = *Assert(psbt.tx);
 +    CMutableTransaction tx = psbt.GetUnsignedTx();
      const CTxOut& out = tx.vout.at(index);
      PSBTOutput& psbt_out = psbt.outputs.at(index);
- 
--- 
+
+--
 2.35.1
 
 
@@ -3834,7 +3834,7 @@ index d435bc3efc..1d26207be2 100644
          psbtxs.push_back(psbtx);
          // Choose the highest version number
          if (*psbtx.tx_version > best_version) {
--- 
+--
 2.35.1
 
 
@@ -3863,11 +3863,11 @@ index 072dfa72cc..d76282111d 100644
 +++ b/src/psbt.h
 @@ -81,7 +81,7 @@ static constexpr uint8_t PSBT_SEPARATOR = 0x00;
  const std::streamsize MAX_FILE_SIZE_PSBT = 100000000; // 100 MiB
- 
+
  // PSBT version number
 -static constexpr uint32_t PSBT_HIGHEST_VERSION = 0;
 +static constexpr uint32_t PSBT_HIGHEST_VERSION = 2;
- 
+
  /** A structure for PSBT proprietary types */
  struct PSBTProprietary
 diff --git a/src/rpc/client.cpp b/src/rpc/client.cpp
@@ -3901,7 +3901,7 @@ index 1d26207be2..5b3e402428 100644
 +#include <util/vector.h>
  #include <validation.h>
  #include <validationinterface.h>
- 
+
 @@ -1892,7 +1893,12 @@ static RPCHelpMan createpsbt()
      return RPCHelpMan{"createpsbt",
                  "\nCreates a transaction in the Partially Signed Transaction format.\n"
@@ -3923,10 +3923,10 @@ index 1d26207be2..5b3e402428 100644
 +        UniValue::VNUM,
          }, true
      );
- 
+
 @@ -1917,15 +1924,16 @@ static RPCHelpMan createpsbt()
      CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
- 
+
      // Make a blank psbt
 -    PartiallySignedTransaction psbtx;
 -    psbtx.tx = rawTx;
@@ -3941,7 +3941,7 @@ index 1d26207be2..5b3e402428 100644
 +    if (psbt_version != 2 && psbt_version != 0) {
 +        throw JSONRPCError(RPC_INVALID_PARAMETER, "The PSBT version can only be 2 or 0");
      }
- 
+
 +    PartiallySignedTransaction psbtx(rawTx, psbt_version);
 +
      // Serialize the PSBT
@@ -3949,7 +3949,7 @@ index 1d26207be2..5b3e402428 100644
      ssTx << psbtx;
 @@ -1986,14 +1994,7 @@ static RPCHelpMan converttopsbt()
      }
- 
+
      // Make a blank psbt
 -    PartiallySignedTransaction psbtx;
 -    psbtx.tx = tx;
@@ -3960,7 +3960,7 @@ index 1d26207be2..5b3e402428 100644
 -        psbtx.outputs.push_back(PSBTOutput(0));
 -    }
 +    PartiallySignedTransaction psbtx(tx, 2 /* version */);
- 
+
      // Serialize the PSBT
      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
 diff --git a/src/wallet/rpc/spend.cpp b/src/wallet/rpc/spend.cpp
@@ -3968,7 +3968,7 @@ index 433b5a1815..b559482072 100644
 --- a/src/wallet/rpc/spend.cpp
 +++ b/src/wallet/rpc/spend.cpp
 @@ -996,7 +996,7 @@ static RPCHelpMan bumpfee_helper(std::string method_name)
- 
+
          result.pushKV("txid", txid.GetHex());
      } else {
 -        PartiallySignedTransaction psbtx(mtx);
@@ -3978,11 +3978,11 @@ index 433b5a1815..b559482072 100644
          CHECK_NONFATAL(err == TransactionError::OK);
 @@ -1185,7 +1185,7 @@ RPCHelpMan send()
              }
- 
+
              // Make a blank psbt
 -            PartiallySignedTransaction psbtx(rawTx);
 +            PartiallySignedTransaction psbtx(rawTx, /* version=*/ 2);
- 
+
              // First fill transaction with our data without signing,
              // so external signers are not asked sign more than once.
 @@ -1370,6 +1370,7 @@ RPCHelpMan walletcreatefundedpsbt()
@@ -4002,10 +4002,10 @@ index 433b5a1815..b559482072 100644
 +        UniValue::VNUM
          }, true
      );
- 
+
 @@ -1421,7 +1423,15 @@ RPCHelpMan walletcreatefundedpsbt()
      FundTransaction(wallet, rawTx, fee, change_position, options, coin_control, /* override_min_fee */ true);
- 
+
      // Make a blank psbt
 -    PartiallySignedTransaction psbtx(rawTx);
 +    uint32_t psbt_version = 2;
@@ -4017,7 +4017,7 @@ index 433b5a1815..b559482072 100644
 +    }
 +
 +    PartiallySignedTransaction psbtx(rawTx, /* version=*/ 2);
- 
+
      // Fill transaction with out data but don't sign
      bool bip32derivs = request.params[4].isNull() ? true : request.params[4].get_bool();
 diff --git a/test/functional/data/rpc_psbt.json b/test/functional/data/rpc_psbt.json
@@ -4042,16 +4042,16 @@ index 872b684f11..936935b7df 100755
          changepos = psbtx["changepos"]
 -        assert_equal(decoded_psbt["tx"]["vout"][changepos]["scriptPubKey"]["type"], expected_type)
 +        assert_equal(decoded_psbt["outputs"][changepos]["script"]["type"], expected_type)
- 
+
      def run_test(self):
          # Create and fund a raw tx for sending 10 BTC
 @@ -100,7 +100,7 @@ class PSBTTest(BitcoinTestFramework):
          assert_raises_rpc_error(-4, "Insufficient funds", self.nodes[0].walletcreatefundedpsbt, [{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():90})
- 
+
          psbtx1 = self.nodes[0].walletcreatefundedpsbt([{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():90}, 0, {"add_inputs": True})['psbt']
 -        assert_equal(len(self.nodes[0].decodepsbt(psbtx1)['tx']['vin']), 2)
 +        assert_equal(len(self.nodes[0].decodepsbt(psbtx1)['inputs']), 2)
- 
+
          # Inputs argument can be null
          self.nodes[0].walletcreatefundedpsbt(None, {self.nodes[2].getnewaddress():10})
 @@ -329,12 +329,14 @@ class PSBTTest(BitcoinTestFramework):
@@ -4070,7 +4070,7 @@ index 872b684f11..936935b7df 100755
 +        assert len(psbt2_decoded['inputs'][1].keys()) > 3
          # Check that BIP32 paths were not added
          assert "bip32_derivs" not in psbt2_decoded['inputs'][1]
- 
+
 @@ -356,33 +358,33 @@ class PSBTTest(BitcoinTestFramework):
          unspent = self.nodes[0].listunspent()[0]
          psbtx_info = self.nodes[0].walletcreatefundedpsbt([{"txid":unspent["txid"], "vout":unspent["vout"]}], [{self.nodes[2].getnewaddress():unspent["amount"]+1}], block_height+2, {"replaceable": False, "add_inputs": True}, False)
@@ -4082,7 +4082,7 @@ index 872b684f11..936935b7df 100755
              assert "bip32_derivs" not in psbt_in
 -        assert_equal(decoded_psbt["tx"]["locktime"], block_height+2)
 +        assert_equal(decoded_psbt["fallback_locktime"], block_height+2)
- 
+
          # Same construction with only locktime set and RBF explicitly enabled
          psbtx_info = self.nodes[0].walletcreatefundedpsbt([{"txid":unspent["txid"], "vout":unspent["vout"]}], [{self.nodes[2].getnewaddress():unspent["amount"]+1}], block_height, {"replaceable": True, "add_inputs": True}, True)
          decoded_psbt = self.nodes[0].decodepsbt(psbtx_info["psbt"])
@@ -4093,7 +4093,7 @@ index 872b684f11..936935b7df 100755
              assert "bip32_derivs" in psbt_in
 -        assert_equal(decoded_psbt["tx"]["locktime"], block_height)
 +        assert_equal(decoded_psbt["fallback_locktime"], block_height)
- 
+
          # Same construction without optional arguments
          psbtx_info = self.nodes[0].walletcreatefundedpsbt([], [{self.nodes[2].getnewaddress():unspent["amount"]+1}])
          decoded_psbt = self.nodes[0].decodepsbt(psbtx_info["psbt"])
@@ -4104,7 +4104,7 @@ index 872b684f11..936935b7df 100755
              assert "bip32_derivs" in psbt_in
 -        assert_equal(decoded_psbt["tx"]["locktime"], 0)
 +        assert_equal(decoded_psbt["fallback_locktime"], 0)
- 
+
          # Same construction without optional arguments, for a node with -walletrbf=0
          unspent1 = self.nodes[1].listunspent()[0]
          psbtx_info = self.nodes[1].walletcreatefundedpsbt([{"txid":unspent1["txid"], "vout":unspent1["vout"]}], [{self.nodes[2].getnewaddress():unspent1["amount"]+1}], block_height, {"add_inputs": True})
@@ -4114,21 +4114,21 @@ index 872b684f11..936935b7df 100755
 +        for psbt_in in decoded_psbt["inputs"]:
 +            assert_greater_than(psbt_in["sequence"], MAX_BIP125_RBF_SEQUENCE)
              assert "bip32_derivs" in psbt_in
- 
+
          # Make sure change address wallet does not have P2SH innerscript access to results in success
 @@ -448,7 +450,7 @@ class PSBTTest(BitcoinTestFramework):
- 
+
          # Creator Tests
          for creator in creators:
 -            created_tx = self.nodes[0].createpsbt(creator['inputs'], creator['outputs'])
 +            created_tx = self.nodes[0].createpsbt(inputs=creator['inputs'], outputs=creator['outputs'], psbt_version=creator['version'])
              assert_equal(created_tx, creator['result'])
- 
+
          # Signer tests
 @@ -505,6 +507,8 @@ class PSBTTest(BitcoinTestFramework):
          vout3 = find_output(self.nodes[0], txid3, 11)
          self.sync_all()
- 
+
 +        psbt_v2_required_keys = ["previous_vout", "sequence", "previous_txid"]
 +
          def test_psbt_input_keys(psbt_input, keys):
@@ -4144,7 +4144,7 @@ index 872b684f11..936935b7df 100755
 +        test_psbt_input_keys(decoded['inputs'][0], psbt_v2_required_keys)
 +        test_psbt_input_keys(decoded['inputs'][1], psbt_v2_required_keys)
 +        test_psbt_input_keys(decoded['inputs'][2], psbt_v2_required_keys)
- 
+
          # Update a PSBT with UTXOs from the node
          # Bech32 inputs should be filled with witness UTXO. Other inputs should not be filled because they are non-witness
          updated = self.nodes[1].utxoupdatepsbt(psbt)
@@ -4155,7 +4155,7 @@ index 872b684f11..936935b7df 100755
 +        test_psbt_input_keys(decoded['inputs'][0], psbt_v2_required_keys + ['witness_utxo'])
 +        test_psbt_input_keys(decoded['inputs'][1], psbt_v2_required_keys)
 +        test_psbt_input_keys(decoded['inputs'][2], psbt_v2_required_keys)
- 
+
          # Try again, now while providing descriptors, making P2SH-segwit work, and causing bip32_derivs and redeem_script to be filled in
          descs = [self.nodes[1].getaddressinfo(addr)['desc'] for addr in [addr1,addr2,addr3]]
          updated = self.nodes[1].utxoupdatepsbt(psbt=psbt, descriptors=descs)
@@ -4171,13 +4171,13 @@ index 872b684f11..936935b7df 100755
 +        psbt1 = self.nodes[1].createpsbt(inputs=[{"txid":txid1, "vout":vout1}], outputs={self.nodes[0].getnewaddress():Decimal('10.999')}, psbt_version=0)
 +        psbt2 = self.nodes[1].createpsbt(inputs=[{"txid":txid1, "vout":vout1}], outputs={self.nodes[0].getnewaddress():Decimal('10.999')}, psbt_version=2)
 +        assert_raises_rpc_error(-8, "joinpsbts only operates on version 0 PSBTs", self.nodes[1].joinpsbts, [psbt1, psbt2])
- 
+
          # Two PSBTs with a common input should not be joinable
 -        psbt1 = self.nodes[1].createpsbt([{"txid":txid1, "vout":vout1}], {self.nodes[0].getnewaddress():Decimal('10.999')})
 -        assert_raises_rpc_error(-8, "exists in multiple PSBTs", self.nodes[1].joinpsbts, [psbt1, updated])
 +        psbt2 = self.nodes[1].createpsbt(inputs=[{"txid":txid1, "vout":vout1}], outputs={self.nodes[0].getnewaddress():Decimal('10.999')}, psbt_version=0)
 +        assert_raises_rpc_error(-8, "exists in multiple PSBTs", self.nodes[1].joinpsbts, [psbt1, psbt2])
- 
+
          # Join two distinct PSBTs
 +        psbt1 = self.nodes[1].createpsbt(inputs=[{"txid":txid1, "vout":vout1},{"txid":txid2, "vout":vout2},{"txid":txid3, "vout":vout3}], outputs={self.nodes[0].getnewaddress():32.999}, psbt_version=0)
          addr4 = self.nodes[1].getnewaddress("", "p2sh-segwit")
@@ -4197,7 +4197,7 @@ index 872b684f11..936935b7df 100755
 +        assert_equal(len(joined_decoded['outputs']), 2)
 +        assert "final_scriptwitness" not in joined_decoded['inputs'][3]
 +        assert "final_scriptSig" not in joined_decoded['inputs'][3]
- 
+
          # Check that joining shuffles the inputs and outputs
          # 10 attempts should be enough to get a shuffled join
          shuffled = False
@@ -4217,10 +4217,10 @@ index f6843d597d..080c32998a 100755
      original_txid = watcher.sendrawtransaction(psbt_final["hex"])
 -    assert_equal(len(watcher.decodepsbt(psbt)["tx"]["vin"]), 1)
 +    assert_equal(len(watcher.decodepsbt(psbt)["inputs"]), 1)
- 
+
      # bumpfee can't be used on watchonly wallets
      assert_raises_rpc_error(-4, "bumpfee is not available with wallets that have private keys disabled. Use psbtbumpfee instead.", watcher.bumpfee, original_txid)
- 
+
      # Bump fee, obnoxiously high to add additional watchonly input
      bumped_psbt = watcher.psbtbumpfee(original_txid, {"fee_rate": HIGH})
 -    assert_greater_than(len(watcher.decodepsbt(bumped_psbt['psbt'])["tx"]["vin"]), 1)
@@ -4248,7 +4248,7 @@ index 2b565db137..10c094e165 100755
 -                amount += vout["value"]
 +                amount += psbt_out["amount"]
          assert_approx(amount, float(value), vspan=0.001)
- 
+
      def participants_create_multisigs(self, xpubs):
 diff --git a/test/functional/wallet_send.py b/test/functional/wallet_send.py
 index 843a9f52b7..b1f9c70f9c 100755
@@ -4265,9 +4265,9 @@ index 843a9f52b7..b1f9c70f9c 100755
 -        change_address = self.nodes[0].decodepsbt(res["psbt"])["tx"]["vout"][0]["scriptPubKey"]["address"]
 +        change_address = self.nodes[0].decodepsbt(res["psbt"])["outputs"][0]["script"]["address"]
          assert change_address[0] == "m" or change_address[0] == "n"
- 
+
          self.log.info("Set lock time...")
--- 
+--
 2.35.1
 
 
@@ -4294,7 +4294,7 @@ index 1fcbc45c72..89be97fd72 100644
      // Default transaction version.
 -    static const int32_t CURRENT_VERSION=2;
 +    static constexpr int32_t CURRENT_VERSION=2;
- 
+
      // The local variables are made const to prevent unintended modification
      // without updating the cached hash value. However, CTransaction is not
 diff --git a/src/psbt.cpp b/src/psbt.cpp
@@ -4304,7 +4304,7 @@ index 0a50265e19..ac4dc18281 100644
 @@ -19,6 +19,14 @@ PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction
      SetupFromTx(tx);
  }
- 
+
 +PartiallySignedTransaction::PartiallySignedTransaction(uint32_t version) :
 +    m_version(version)
 +{
@@ -4326,9 +4326,9 @@ index d76282111d..b091dd97f9 100644
      PartiallySignedTransaction() {}
 +    PartiallySignedTransaction(uint32_t version);
      explicit PartiallySignedTransaction(const CMutableTransaction& tx, uint32_t version = 0);
- 
+
      template <typename Stream>
--- 
+--
 2.35.1
 
 
@@ -4351,14 +4351,13 @@ index b091dd97f9..ec8733ccc8 100644
 --- a/src/psbt.h
 +++ b/src/psbt.h
 @@ -1156,7 +1156,7 @@ struct PartiallySignedTransaction
- 
+
              // Write serialized tx to a stream
              OverrideStream<Stream> os(&s, s.GetType(), s.GetVersion() | SERIALIZE_TRANSACTION_NO_WITNESS);
 -            SerializeToVector(os, *tx);
 +            SerializeToVector(os, GetUnsignedTx());
          }
- 
-         // Write xpubs
--- 
-2.35.1
 
+         // Write xpubs
+--
+2.35.1
