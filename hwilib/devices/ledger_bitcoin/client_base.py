@@ -223,8 +223,8 @@ class Client:
 
     def sign_message(self, message: Union[str, bytes], bip32_path: str) -> str:
         """
-        Sign a message (bitcoin message signing).
-        Signs a message using the legacy Bitcoin Core signed message format.
+        Sign a message (groestlcoin message signing).
+        Signs a message using the legacy Groestlcoin Core signed message format.
         The message is signed with the key at the given path.
         :param message: The message to be signed. First encoded as bytes if not already.
         :param bip32_path: The BIP 32 derivation for the key to sign the message with.

@@ -1,5 +1,5 @@
 """
-This module provides a compatibility layer between the python client of the Ledger Nano Bitcoin app v2 and the v1.6.5,
+This module provides a compatibility layer between the python client of the Ledger Nano Groestlcoin app v2 and the v1.3.9,
 by translating client requests to the API of the app v1.6.5.
 
 The bulk of the code is taken from bitcoin-core/HWI, with the necessary adaptations.

@@ -218,8 +218,8 @@ def createClient(comm_client: Optional[TransportClient] = None, chain: Chain = C
     base_client = Client(comm_client, chain)
     app_name, app_version, _ = base_client.get_version()
 
-    if app_name not in ["Bitcoin", "Bitcoin Test", "app"]:
-        raise NotSupportedError(0x6A82, None, "Ledger is not in either the Bitcoin or Bitcoin Testnet app")
+    if app_name not in ["Groestlcoin", "Groestlcoin Test", "app"]:
+        raise NotSupportedError(0x6A82, None, "Ledger is not in either the Groestlcoin or Groestlcoin Testnet app")
 
     if app_version >= "2":
         return NewClient(comm_client, chain)

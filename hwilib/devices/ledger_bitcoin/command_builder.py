@@ -56,7 +56,7 @@ class FrameworkInsType(enum.IntEnum):
 
 
 class BitcoinCommandBuilder:
-    """APDU command builder for the Bitcoin application."""
+    """APDU command builder for the Groestlcoin application."""
 
     CLA_DEFAULT: int = 0xB0
     CLA_BITCOIN: int = 0xE1
