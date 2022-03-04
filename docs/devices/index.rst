@@ -56,6 +56,8 @@ The table below lists what devices and features are supported for each device.
 | Display on device screen           | ✓             | ✓             | ✓          | ✓              | ✓
 +------------------------------------+---------------+---------------+------------+----------------+---------
 
+\* There are some caveats. See the `sign_tx` for these devices.
+
 Support Policy
 ================
 
