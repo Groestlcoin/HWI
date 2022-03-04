@@ -33,8 +33,6 @@ from typing import (
     Optional,
 )
 
-from ..common import Chain
-
 import sys
 
 py_enumerate = enumerate # Need to use the enumerate built-in but there's another function already named that
