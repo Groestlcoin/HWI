@@ -2833,7 +2833,7 @@ index c9be566f76..b20a70a475 100644
 +++ b/src/psbt.h
 @@ -1129,7 +1129,7 @@ struct PartiallySignedTransaction
      /** Merge psbt into this. The two psbts must have the same underlying CTransaction (i.e. the
-       * same actual Bitcoin transaction.) Returns true if the merge succeeded, false otherwise. */
+       * same actual Groestlcoin transaction.) Returns true if the merge succeeded, false otherwise. */
      [[nodiscard]] bool Merge(const PartiallySignedTransaction& psbt);
 -    bool AddInput(const CTxIn& txin, PSBTInput& psbtin);
 +    bool AddInput(PSBTInput& psbtin);
@@ -2925,7 +2925,7 @@ index b20a70a475..de9d6eb6ad 100644
 --- a/src/psbt.h
 +++ b/src/psbt.h
 @@ -1130,7 +1130,7 @@ struct PartiallySignedTransaction
-       * same actual Bitcoin transaction.) Returns true if the merge succeeded, false otherwise. */
+       * same actual Groestlcoin transaction.) Returns true if the merge succeeded, false otherwise. */
      [[nodiscard]] bool Merge(const PartiallySignedTransaction& psbt);
      bool AddInput(PSBTInput& psbtin);
 -    bool AddOutput(const CTxOut& txout, const PSBTOutput& psbtout);
