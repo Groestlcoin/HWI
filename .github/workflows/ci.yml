@@ -68,7 +68,7 @@ jobs:
           name: hwi-${{ github.sha }}-wheel
 
   macos:
-    runs-on: macos-10.15
+    runs-on: macos-11
     steps:
       - uses: actions/checkout@v2
       - name: Install Poetry
