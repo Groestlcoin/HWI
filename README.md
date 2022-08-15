@@ -1,5 +1,7 @@
 # Groestlcoin Hardware Wallet Interface
 
+[![Build Status](https://api.cirrus-ci.com/github/Groestlcoin/HWI.svg)](https://cirrus-ci.com/github/Groestlcoin/HWI)
+
 The Groestlcoin Hardware Wallet Interface is a Python library and command line tool for interacting with hardware wallets.
 It provides a standard way for software to work with hardware wallets without needing to implement device specific drivers.
 Python software can use the provided library (`hwilib`). Software in other languages can execute the `hwi` tool.
@@ -81,34 +83,6 @@ pass the `--help` parameter after the command name; for example:
 ```
 ./hwi.py getdescriptors --help
 ```
-
-## Device Support
-
-The below table lists what devices and features are supported for each device.
-
-| Feature \ Device | Ledger Nano X | Ledger Nano S | Trezor One | Trezor Model T |
-|:---:|:---:|:---:|:---:|:---:|
-| Support Planned | Yes | Yes | Yes | Yes |
-| Implemented | Yes | Yes | Yes | Yes |
-| xpub retrieval | Yes | Yes | Yes | Yes |
-| Message Signing | Yes | Yes | Yes | Yes |
-| Device Setup | N/A | N/A | Yes | Yes |
-| Device Wipe | N/A | N/A | Yes | Yes |
-| Device Recovery | N/A | N/A | Yes | Yes |
-| Device Backup | N/A | N/A | N/A | N/A |
-| P2PKH Inputs | Yes | Yes | Yes | Yes |
-| P2SH-P2WPKH Inputs | Yes | Yes | Yes | Yes |
-| P2WPKH Inputs | Yes | Yes | Yes | Yes |
-| P2SH Multisig Inputs | Yes | Yes | Yes | Yes |
-| P2SH-P2WSH Multisig Inputs | Yes | Yes | Yes | Yes |
-| P2WSH Multisig Inputs | Yes | Yes | Yes | Yes |
-| Bare Multisig Inputs | Yes | Yes | N/A | N/A |
-| Arbitrary scriptPubKey Inputs | Yes | Yes | N/A | N/A |
-| Arbitrary redeemScript Inputs | Yes | Yes | N/A | N/A |
-| Arbitrary witnessScript Inputs | Yes | Yes | N/A | N/A |
-| Non-wallet inputs | Yes | Yes | Yes | Yes |
-| Mixed Segwit and Non-Segwit Inputs | N/A | N/A | Yes | Yes |
-| Display on device screen | Yes | Yes | Yes | Yes |
 
 ## License
 
