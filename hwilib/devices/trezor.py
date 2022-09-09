@@ -577,6 +577,7 @@ class TrezorClient(HardwareWalletClient):
                         tx.xpub, psbt_out)
                     if is_ms:
                         txoutput.multisig = multisig
+                        txoutput.script_type = messages.OutputScriptType.PAYTOMULTISIG
 
                 # append to outputs
                 outputs.append(txoutput)
