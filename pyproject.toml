@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hwi"
-version = "2.1.1"
+version = "2.2.0"
 description = "A library for working with Groestlcoin hardware wallets"
 authors = ["Groestlcoin developers <groestlcoin@gmail.com>"]
 license = "MIT"
