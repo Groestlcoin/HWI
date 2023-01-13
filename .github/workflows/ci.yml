@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: hwi-${{ github.sha }}-wheel
-          path: dist/*.whl
+          path: dist/
           if-no-files-found: error
           retention-days: 7
       - name: Download artifacts
