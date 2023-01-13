@@ -79,7 +79,8 @@ LEDGER_MODEL_IDS = {
 }
 LEDGER_LEGACY_PRODUCT_IDS = {
     0x0001: "ledger_nano_s",
-    0x0004: "ledger_nano_x"
+    0x0004: "ledger_nano_x",
+    0x0005: "ledger_nano_s_plus"
 }
 
 # minimal checking of string keypath
