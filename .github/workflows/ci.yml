@@ -47,7 +47,7 @@ jobs:
         with:
           name: hwi-${{ github.sha }}-linux
 
-  wheel:
+  wheel-and-sdist:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -58,14 +58,14 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: hwi-${{ github.sha }}-wheel
+          name: hwi-${{ github.sha }}-wheel-and-sdist
           path: dist/
           if-no-files-found: error
           retention-days: 7
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          name: hwi-${{ github.sha }}-wheel
+          name: hwi-${{ github.sha }}-wheel-and-sdist
 
   macos:
     runs-on: macos-11
