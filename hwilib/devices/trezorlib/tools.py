@@ -19,7 +19,7 @@ import hashlib
 import re
 import struct
 import unicodedata
-import groestlcoin_has
+import groestlcoin_hash
 from typing import (
     TYPE_CHECKING,
     Any,
