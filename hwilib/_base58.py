@@ -98,13 +98,13 @@ def decode_check(s: str) -> bytes:
     data = decode(s)
     payload = data[:-4]
     checksum = data[-4:]
-    calc_checksum = hash256(payload)
+    calc_checksum = groestl(payload)
     if checksum != calc_checksum:
         raise ValueError("Invalid checksum")
     return payload
 
 def encode_check(b: bytes) -> str:
-    checksum = hash256(b)[0:4]
+    checksum = groestl(b)[0:4]
     data = b + checksum
     return encode(data)
 
