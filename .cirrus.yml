@@ -123,7 +123,7 @@ task:
 
 wine_builder_task:
   container:
-    dockerfile: contrib/build.Dockerfile
+    dockerfile: contrib/build-wine.Dockerfile
   build_script:
     - contrib/build_wine.sh
     - find dist -type f -exec sha256sum {} \;
@@ -233,7 +233,7 @@ task:
     - name: Python $PYTHON $DEVICE Wheel
       install_script: pip install dist/*.whl
     - name: Python $PYTHON $DEVICE Sdist
-      install_script: pip install $(find dist -name "*.tar.gz" -a -not -name "*amd64*")
+      install_script: pip install $(find dist -name "*.tar.gz" -a -not -name "*linux*")
     - name: Python $PYTHON $DEVICE Bindist
       install_script: poetry install
       untar_bindist_script: cd dist; tar -xvf hwi*linux*.tar.gz; cd ..

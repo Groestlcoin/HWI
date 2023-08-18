@@ -99,7 +99,7 @@ def decode_check(s: str) -> bytes:
     payload = data[:-4]
     checksum = data[-4:]
     calc_checksum = groestl(payload)
-    if checksum != calc_checksum:
+    if checksum != calc_checksum[:4]:
         raise ValueError("Invalid checksum")
     return payload
 
