@@ -10,7 +10,7 @@ jobs:
       - name: Builder image
         env:
           TARGET_OS: Windows
-        run: docker build --no-cache -t hwi-windows-builder-img -f contrib/build.Dockerfile .
+        run: docker build --no-cache -t hwi-windows-builder-img -f contrib/build-wine.Dockerfile .
       - name: Compile Windows binary
         env:
           TARGET_OS: Windows
