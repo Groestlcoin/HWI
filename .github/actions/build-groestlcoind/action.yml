@@ -1,5 +1,5 @@
-name: Build bitcoind
-description: Build bitcoind with depends.
+name: Build groestlcoind
+description: Build groestlcoind with depends.
 runs:
   using: composite
   steps:
@@ -21,9 +21,9 @@ runs:
         CCACHE_MAXSIZE: '20M'
       run: |
         ccache --zero-stats
-        cd test; ./setup_environment.sh --bitcoind; cd ..
+        cd test; ./setup_environment.sh --groestlcoind; cd ..
         ccache --show-stats --verbose
-        tar -czf bitcoind.tar.gz test/work/bitcoin/src/bitcoind
+        tar -czf groestlcoind.tar.gz test/work/groestlcoin/src/groestlcoind
 
     - uses: actions/cache/save@v3
       if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
@@ -33,5 +33,5 @@ runs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: bitcoind
-        path: bitcoind.tar.gz
+        name: groestlcoind
+        path: groestlcoind.tar.gz

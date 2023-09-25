@@ -1,0 +1,94 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Builder image
+        env:
+          TARGET_OS: Windows
+        run: docker build --no-cache -t hwi-windows-builder-img -f contrib/build-wine.Dockerfile .
+      - name: Compile Windows binary
+        env:
+          TARGET_OS: Windows
+        run: docker run --name hwi-windows-builder-cont -v $PWD:/opt/hwi --rm  --workdir /opt/hwi hwi-windows-builder-img /bin/bash -c "contrib/build_wine.sh"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-windows
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-windows
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Builder image
+        run: docker build --no-cache -t hwi-linux-builder-img -f contrib/build.Dockerfile .
+      - name: Compile Linux binary
+        run: docker run --name hwi-linux-builder-cont -v $PWD:/opt/hwi --rm  --workdir /opt/hwi hwi-linux-builder-img /bin/bash -c "contrib/build_bin.sh"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-linux
+          path: dist/hw*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-linux
+
+  wheel-and-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Builder image
+        run: docker build --no-cache -t hwi-wheel-builder-img -f contrib/build.Dockerfile .
+      - name: Compile wheel and sdist
+        run: docker run --name hwi-wheel-builder-cont -v $PWD:/opt/hwi --rm  --workdir /opt/hwi hwi-wheel-builder-img /bin/bash -c "contrib/build_dist.sh"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-wheel-and-sdist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-wheel-and-sdist
+
+  macos:
+    runs-on: macos-11
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Install pyenv
+        run: brew install pyenv
+      - name: Install pyenv 3.9.7
+        run: PYTHON_CONFIGURE_OPTS="--enable-framework" BUILD_DATE="Jan  1 2019" BUILD_TIME="00:00:00" pyenv install 3.9.7
+      - name: Set local Python version to 3.9.7
+        run: pyenv local 3.9.7
+      - name: Compile OSX binary
+        run: ./contrib/build_bin.sh
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-macos
+          path: dist/hw*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: hwi-${{ github.sha }}-macos

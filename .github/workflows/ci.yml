@@ -186,17 +186,17 @@ jobs:
           name: ledger_app
           path: app-bitcoin-new/bin/app.elf
 
-  bitcoind-builder:
-    name: bitcoind builder
+  groestlcoind-builder:
+    name: groestlcoind builder
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-bitcoind
+      - uses: ./.github/actions/build-groestlcoind
 
   test-dist:
     name: Python ${{ matrix.python-version }} ${{ matrix.device }} ${{ matrix.script.name }}
     runs-on: ubuntu-latest
-    needs: [ dist-builder, sim-builder, ledger-app-builder, bitcoind-builder ]
+    needs: [ dist-builder, sim-builder, ledger-app-builder, groestlcoind-builder ]
 
     strategy:
       fail-fast: false
@@ -205,9 +205,6 @@ jobs:
         device:
           - 'trezor-1'
           - 'trezor-t'
-          - 'coldcard'
-          - 'bitbox01'
-          - 'jade'
           - 'ledger'
           - 'ledger-legacy'
           - 'keepkey'
@@ -243,10 +240,10 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          name: bitcoind
+          name: groestlcoind
 
       - run: |
-          tar -xvf bitcoind.tar.gz
+          tar -xvf groestlcoind.tar.gz
 
       - uses: ./.github/actions/install-sim
         with:
@@ -264,7 +261,7 @@ jobs:
   test-all:
     name: Python ${{ matrix.python-version }} ${{ matrix.device }} ${{ matrix.interface }}
     runs-on: ubuntu-latest
-    needs: [ sim-builder, ledger-app-builder, bitcoind-builder ]
+    needs: [ sim-builder, ledger-app-builder, groestlcoind-builder ]
 
     strategy:
       fail-fast: false
@@ -289,10 +286,10 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          name: bitcoind
+          name: groestlcoind
 
       - run: |
-          tar -xvf bitcoind.tar.gz
+          tar -xvf groestlcoind.tar.gz
 
       - uses: ./.github/actions/install-sim
         with:
