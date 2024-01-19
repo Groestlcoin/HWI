@@ -139,10 +139,10 @@ You can give this out to people as you normally would. When coins are sent to it
 
 ## Sending
 
-To send Groestlcoin, we will use `walletcreatefundedpsbt`. This will create a Partially Signed Groestlcoin Transaction which is funded by inputs from the wallets (i.e. your watching only inputs selected with Groestlcoin Core's coin selection algorithm).
+To send Groestlcoin, we will use `walletcreatefundedpsbt`. This will create a Partially Signed Groestlcoin Transaction which is funded by inputs from the wallets (i.e. you're watching only inputs selected with Groestlcoin Core's coin selection algorithm).
 This PSBT can be used with HWI to produce a signed PSBT which can then be finalized and broadcast.
 
-For example, suppose I am sending to 1 GRS to grs1q257z5t76hedc36wmmzva05890ny3kxd7xfwrgy. First I create a funded psbt with BIP 32 derivation paths to be included:
+For example, suppose I am sending 1 GRS to grs1q257z5t76hedc36wmmzva05890ny3kxd7xfwrgy. First I create a funded psbt with BIP 32 derivation paths to be included:
 ```
 $ src/groestlcoin-cli -rpcwallet=trezor walletcreatefundedpsbt '[]' '[{"grs1q257z5t76hedc36wmmzva05890ny3kxd7xfwrgy":1}]' 0 '{"includeWatching":true}' true
 {
