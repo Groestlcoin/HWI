@@ -183,6 +183,6 @@ Send funds with Groestlcoin Core and Trezor using HWI
 Versions Used
 =============
 
-* This walk-trough was done in January 2021
+* This walkthrough was done in January 2021
 * HWI version 2.0.0-dev
 * Groestlcoin 2.21.0

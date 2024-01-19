@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hwi"
-version = "2.3.1"
+version = "2.4.0-rc.1"
 description = "A library for working with Groestlcoin hardware wallets"
 authors = ["Groestlcoin developers <groestlcoin@gmail.com>"]
 license = "MIT"
@@ -16,7 +16,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7,<3.12"
+python = "^3.8,<3.13"
 hidapi = ">=0.14.0"
 ecdsa = "~0"
 pyaes = "^1.6"
@@ -24,7 +24,7 @@ mnemonic = "~0"
 typing-extensions = "^4.4"
 libusb1 = ">=1.7,<4"
 pyside2 = { version = "^5.14.0", optional = true, python = "<3.10" }
-cbor = "^1.0.0"
+cbor2 = "^5.4.6"
 pyserial = "^3.5"
 groestlcoin-hash = "1.0.3"
 dataclasses = {version = "^0.8", python = ">=3.6,<3.7"}
@@ -36,7 +36,7 @@ protobuf = "^4.23.3"
 qt = ["pyside2"]
 
 [tool.poetry.dev-dependencies]
-pyinstaller = "^5.3"
+pyinstaller = "^6.3"
 autopep8 = "~1"
 flake8 = ">=3"
 mypy = "~0"
