@@ -174,17 +174,17 @@ jobs:
   ledger-app-builder:
     name: Ledger App builder
     runs-on: ubuntu-latest
-    container: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+    container: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-legacy:latest
     steps:
       - run: |
-          git clone https://github.com/LedgerHQ/app-bitcoin-new.git
-          cd app-bitcoin-new
+          git clone https://github.com/LedgerHQ/app-groestlcoin.git
+          cd app-groestlcoin
           make DEBUG=1
 
       - uses: actions/upload-artifact@v3
         with:
           name: ledger_app
-          path: app-bitcoin-new/bin/app.elf
+          path: app-groestlcoin/bin/app.elf
 
   groestlcoind-builder:
     name: groestlcoind builder
