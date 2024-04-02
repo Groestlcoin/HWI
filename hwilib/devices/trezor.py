@@ -613,7 +613,7 @@ class TrezorClient(HardwareWalletClient):
                             script_pubkey=vout.scriptPubKey,
                         )
                         t.bin_outputs.append(o)
-                    assert(psbt_in.non_witness_utxo.hash is not None)
+                    assert psbt_in.non_witness_utxo.hash is not None
                     logging.debug(psbt_in.non_witness_utxo.hash.hex())
                     assert psbt_in.non_witness_utxo.sha256 is not None
                     prevtxs[ser_uint256(psbt_in.non_witness_utxo.sha256)[::-1]] = t
@@ -852,11 +852,12 @@ class TrezorClient(HardwareWalletClient):
         return True
 
 
-def enumerate(password: Optional[str] = None, expert: bool = False, chain: Chain = Chain.MAIN) -> List[Dict[str, Any]]:
+def enumerate(password: Optional[str] = None, expert: bool = False, chain: Chain = Chain.MAIN, allow_emulators: bool = False) -> List[Dict[str, Any]]:
     results = []
     devs = hid.HidTransport.enumerate()
     devs.extend(webusb.WebUsbTransport.enumerate())
-    devs.extend(udp.UdpTransport.enumerate())
+    if allow_emulators:
+        devs.extend(udp.UdpTransport.enumerate())
     for dev in devs:
         d_data: Dict[str, Any] = {}
 

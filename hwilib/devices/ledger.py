@@ -120,7 +120,7 @@ signing_priority = {
     AddressType.LEGACY: 3,
 }
 
-def handle_chip_exception(e, func_name: str) -> bool:
+def handle_chip_exception(e: Union[BTChipException, ApduException], func_name: str) -> bool:
     if e.sw in bad_args:
         raise BadArgumentError('Bad argument')
     elif e.sw == 0x6F00: # BTCHIP_SW_TECHNICAL_PROBLEM
@@ -547,11 +547,12 @@ class LedgerClient(HardwareWalletClient):
         return isinstance(self.client, NewClient)
 
 
-def enumerate(password: Optional[str] = None, expert: bool = False, chain: Chain = Chain.MAIN) -> List[Dict[str, Any]]:
+def enumerate(password: Optional[str] = None, expert: bool = False, chain: Chain = Chain.MAIN, allow_emulators: bool = False) -> List[Dict[str, Any]]:
     results = []
     devices = []
     devices.extend(hid.enumerate(LEDGER_VENDOR_ID, 0))
-    devices.append({'path': SIMULATOR_PATH.encode(), 'interface_number': 0, 'product_id': 0x1000})
+    if allow_emulators:
+        devices.append({'path': SIMULATOR_PATH.encode(), 'interface_number': 0, 'product_id': 0x1000})
 
     for d in devices:
         if ('interface_number' in d and d['interface_number'] == 0
