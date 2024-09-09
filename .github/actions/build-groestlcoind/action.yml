@@ -23,7 +23,7 @@ runs:
         ccache --zero-stats
         cd test; ./setup_environment.sh --groestlcoind; cd ..
         ccache --show-stats --verbose
-        tar -czf groestlcoind.tar.gz test/work/groestlcoin/src/groestlcoind
+        tar -czf groestlcoind.tar.gz test/work/groestlcoin/build/src/groestlcoind
 
     - uses: actions/cache/save@v4
       if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'

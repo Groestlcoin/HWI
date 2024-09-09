@@ -90,6 +90,7 @@ if [[ -n ${build_trezor_1} || -n ${build_trezor_t} ]]; then
         poetry install
         cd legacy
         export EMULATOR=1 TREZOR_TRANSPORT_V1=1 DEBUG_LINK=1 HEADLESS=1
+        export CC=gcc-12
         poetry run pip install protobuf==3.20.0
         poetry run script/setup
         poetry run script/cibuild
@@ -108,6 +109,7 @@ if [[ -n ${build_trezor_1} || -n ${build_trezor_t} ]]; then
         # But there should be some caching that makes this faster
         poetry install
         cd core
+        export CC=gcc-12
         poetry run make build_unix
         # Delete any emulator.img file
         find . -name "trezor.flash" -exec rm {} \;
@@ -442,11 +444,10 @@ if [[ -n ${build_groestlcoind} ]]; then
 
     # Build groestlcoind. This is super slow, but it is cached so it runs fairly quickly.
     pushd depends
-    make NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_UPNP=1 NO_NATPMP=1
+    make NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_UPNP=1 NO_NATPMP=1 NO_USDT=1
     popd
 
     # Do the build
-    ./autogen.sh
-    CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure --with-incompatible-bdb --with-miniupnpc=no --without-gui --disable-zmq --disable-tests --disable-bench --with-libs=no --with-utils=no
-    make src/groestlcoind
+    cmake -B build --toolchain depends/x86_64-pc-linux-gnu/toolchain.cmake -DBUILD_TESTS=OFF -DBUILD_BENCH=OFF
+    cmake --build build --target groestlcoind
 fi
