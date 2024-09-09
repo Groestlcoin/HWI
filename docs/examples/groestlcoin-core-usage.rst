@@ -23,10 +23,9 @@ Clone Groestlcoin Core and build it. Clone HWI.
 ```
 $ git clone https://github.com/groestlcoin/groestlcoin.git
 $ cd groestlcoin
-$ ./autogen.sh
-$ ./configure
-$ make
-$ src/groestlcoind -daemon -addresstype=bech32 -changetype=bech32
+$ cmake -B build
+$ cmake --build build
+$ build/src/groestlcoind -daemon -addresstype=bech32 -changetype=bech32
 $ cd ..
 $ git clone https://github.com/groestlcoin/HWI.git
 $ cd HWI
