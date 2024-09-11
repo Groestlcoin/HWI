@@ -68,7 +68,7 @@ jobs:
           name: hwi-${{ github.sha }}-wheel-and-sdist
 
   macos-intel:
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - uses: actions/checkout@v4
       - name: Install Poetry
