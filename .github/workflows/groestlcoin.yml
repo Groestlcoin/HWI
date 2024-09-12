@@ -75,10 +75,10 @@ jobs:
         uses: snok/install-poetry@v1
       - name: Install pyenv
         run: brew install pyenv
-      - name: Install pyenv 3.9.7
-        run: PYTHON_CONFIGURE_OPTS="--enable-framework" BUILD_DATE="Jan  1 2019" BUILD_TIME="00:00:00" pyenv install 3.9.7
-      - name: Set local Python version to 3.9.7
-        run: pyenv local 3.9.7
+      - name: Install pyenv 3.9.19
+        run: PYTHON_CONFIGURE_OPTS="--enable-framework" BUILD_DATE="Jan  1 2019" BUILD_TIME="00:00:00" pyenv install 3.9.19
+      - name: Set local Python version to 3.9.19
+        run: pyenv local 3.9.19
       - name: Compile OSX binary
         run: ./contrib/build_bin.sh
       - name: Upload Artifact
